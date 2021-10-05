@@ -11,5 +11,3 @@ class Model:
     @property
     def parameters(self):
         return []
-
-    

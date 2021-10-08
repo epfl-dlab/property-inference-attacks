@@ -3,16 +3,25 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 
-from generator import Generator
-from model import Model
+from src.generator import Generator
+from src.model import Model, LogReg, MLP
 
 NUM_TREADS = 8
-DEFAULT_MODEL = Model
+DEFAULT_MODEL = LogReg
 DEFAULT_HYPERPARAMS = None
 
+"""DEFAULT_MODEL = MLP
+DEFAULT_HYPERPARAMS = {
+    "input_size": 4,
+    "hidden_size": 20,
+    "num_classes": 2,
+    "epochs": 20,
+    "learning_rate": 1e-3,
+    "batch_size": 32
+}"""
 
 class Experiment:
-    def __init__(self, generator, model, n_targets, n_shadows, hyperparams, n_queries=1000):
+    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1000):
         """Object representing an experiment, based on its data generator and model pair
 
         Args:
@@ -26,19 +35,22 @@ class Experiment:
         assert isinstance(generator, Generator), 'The given generator is not an instance of Generator'
         self.generator = generator
 
+        assert isinstance(label_col, str), 'label_col should be a string'
+        self.label_col = label_col
+
         assert issubclass(model, Model), 'The given model is not an instance of Model'
         self.model = model
 
-        assert n_targets is int, 'The given n_targets is not an integer'
+        assert isinstance(n_targets, int), 'The given n_targets is not an integer'
         self.n_targets = n_targets
 
-        assert n_shadows is int, 'The given n_shadows is not an integer'
+        assert isinstance(n_shadows, int), 'The given n_shadows is not an integer'
         self.n_shadows = n_shadows
 
-        assert hyperparams is dict, 'The given hyperparameters are not a dictionary'
+        assert isinstance(hyperparams, dict), 'The given hyperparameters are not a dictionary'
         self.hyperparams = hyperparams
 
-        assert n_queries is int, 'The given n_queries is not an integer'
+        assert isinstance(n_queries, int), 'The given n_queries is not an integer'
         self.n_queries = n_queries
 
         self.targets = None
@@ -49,14 +61,14 @@ class Experiment:
 
     def prepare_attacks(self):
         self.labels = [False]*self.n_targets + [True]*self.n_targets
-        self.targets = [self.model(self.hyperparams).train(data) for data in
-                        [self.generator.sample(b) for b in self.shadow_labels]]
+        self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
+                        [self.generator.sample(b) for b in self.labels]]
 
     def run_shadows(self, model, hyperparams):
         assert issubclass(model, Model), 'The given model is not an instance of Model'
 
         self.shadow_labels = [False] * self.n_shadows + [True] * self.n_shadows
-        self.shadow_models = [model(hyperparams).train(data) for data in
+        self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
                               [self.generator.sample(b) for b in self.shadow_labels]]
 
     def run_whitebox(self):
@@ -65,8 +77,8 @@ class Experiment:
 
         meta_classifier = LogisticRegression() # Should be DeepSets model
 
-        train = pd.DataFrame(data=[s.parameters.flatten() for s in self.shadow_models])
-        test = pd.DataFrame(data=[t.parameters.flatten() for t in self.targets])
+        train = pd.DataFrame(data=[s.parameters().flatten() for s in self.shadow_models])
+        test = pd.DataFrame(data=[t.parameters().flatten() for t in self.targets])
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)
@@ -82,8 +94,8 @@ class Experiment:
 
         queries = pd.concat([self.generator.sample(True), self.generator.sample(False)]).sample(self.n_queries)
 
-        train = pd.DataFrame(data=[[s.predict_proba(q) for q in queries] for s in self.shadow_models])
-        test  = pd.DataFrame(data=[[s.predict_proba(q) for q in queries] for s in self.targets])
+        train = pd.DataFrame(data=[s.predict_proba(queries).flatten() for s in self.shadow_models])
+        test  = pd.DataFrame(data=[s.predict_proba(queries).flatten() for s in self.targets])
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)

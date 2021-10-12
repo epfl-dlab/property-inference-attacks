@@ -1,8 +1,10 @@
 import json
 
 from argparse import ArgumentParser
-from os import path
+from os import path, mkdir
+from time import strftime
 
+from src import logger
 from src.experiment import Experiment
 from src.generator import GaussianGenerator, IndependentPropertyGenerator
 from src.model import LogReg, MLP
@@ -21,27 +23,32 @@ def main():
     # Load runconfig
     with open(path.join(CWD, args.runconfig)) as f:
         runconfig = json.load(f)
-    print('Runconfig:')
-    print(runconfig)
+    logger.debug('Runconfig: {}'.format(runconfig))
 
-    # Run experiments
+    # Define experiments
+    experiments = dict()
 
     gen = GaussianGenerator()
     model = LogReg
-    exp = Experiment(gen, 'label', model, runconfig['n_targets'], runconfig['n_shadows'], runconfig['model_params'])
-    res_gauss = exp.prepare_and_run_all()
-    print('Multivariate Gaussian Experiment:')
-    print(res_gauss)
+    experiments['Multivariate Gaussian'] = Experiment(gen, 'label', model, runconfig['n_targets'], runconfig['n_shadows'], runconfig['model_params'])
 
     gen = IndependentPropertyGenerator()
-    model = LogReg
-    exp = Experiment(gen, 'label', model, runconfig['n_targets'], runconfig['n_shadows'], runconfig['model_params'])
-    res_indep = exp.prepare_and_run_all()
-    print('Independent Property Experiment:')
-    print(res_indep)
+    experiments['Independent Property'] = Experiment(gen, 'label', model, runconfig['n_targets'], runconfig['n_shadows'], runconfig['model_params'])
+
+    # Run experiments
+    results = dict()
+    for k, v in experiments.items():
+        logger.info('Running {} Experiment'.format(k))
+        results[k] = v.prepare_and_run_all()
+        logger.info('Results of {} Experiment: {}'.format(k, results[k]))
 
     # Output results
-
+    outfile_name = 'results_PIA_' + strftime('%d%m%y_%H:%M:%S') + '.json'
+    outdir = path.join(CWD, args.outdir)
+    if not path.isdir(outdir):
+        mkdir(outdir)
+    with open(path.join(outdir, outfile_name), 'w') as f:
+        json.dump(results, f)
 
 
 if __name__ == "__main__":

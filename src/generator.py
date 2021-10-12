@@ -4,7 +4,18 @@ from pandas import DataFrame
 
 
 class Generator:
+    """An abstraction class used to query for data
+    """
     def sample(self, b):
+        """Returns a dataset sampled from the data; the boolean b describes whether or not the output dataset should have
+        or not the property that is being attacked
+
+        Args:
+            b: a boolean describing whether output data should respond to the queried property
+
+        Returns:
+            a pandas DataFrame representing our dataset for this experiment
+        """
         raise NotImplementedError
 
 

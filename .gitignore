@@ -1,3 +1,5 @@
 .idea
 results
+logs
+
 *.pyc

@@ -5,6 +5,7 @@ from sklearn.metrics import accuracy_score
 
 from src.generator import Generator
 from src.model import Model, LogReg, MLP
+from src import logger
 
 NUM_TREADS = 8
 DEFAULT_MODEL = LogReg
@@ -20,37 +21,41 @@ DEFAULT_HYPERPARAMS = {
     "batch_size": 32
 }"""
 
+
 class Experiment:
     def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1000):
         """Object representing an experiment, based on its data generator and model pair
 
         Args:
             generator: a Generator object, used to query data
-            model: a Model object, used for training target models, and if applicable shadow models
+            model: a Model class that represents the kind of model to be used
             n_targets: the number of target pairs used for each experiment
             n_shadows: the number of shadow model pairs run for this experiment
             hyperparams: dictionary containing every useful hyper-parameter for the Model
         """
 
-        assert isinstance(generator, Generator), 'The given generator is not an instance of Generator'
+        assert isinstance(generator, Generator), 'The given generator is not an instance of Generator, but {}'.format(type(generator).__name__)
         self.generator = generator
 
-        assert isinstance(label_col, str), 'label_col should be a string'
+        assert isinstance(label_col, str), 'label_col should be a string, but is {}'.format(type(label_col).__name__)
         self.label_col = label_col
 
-        assert issubclass(model, Model), 'The given model is not an instance of Model'
+        assert issubclass(model, Model), 'The given model is not a subclass of Model'
         self.model = model
 
-        assert isinstance(n_targets, int), 'The given n_targets is not an integer'
+        assert isinstance(n_targets, int), 'The given n_targets is not an integer, but is {}'.format(type(n_targets).__name__)
         self.n_targets = n_targets
 
-        assert isinstance(n_shadows, int), 'The given n_shadows is not an integer'
+        assert isinstance(n_shadows, int), 'The given n_shadows is not an integer, but is {}'.format(type(n_shadows).__name__)
         self.n_shadows = n_shadows
 
-        assert isinstance(hyperparams, dict), 'The given hyperparameters are not a dictionary'
-        self.hyperparams = hyperparams
+        if hyperparams is not None:
+            assert isinstance(hyperparams, dict), 'The given hyperparameters are not a dictionary, but are {}'.format(type(hyperparams).__name__)
+            self.hyperparams = hyperparams
+        else:
+            self.hyperparams = dict()
 
-        assert isinstance(n_queries, int), 'The given n_queries is not an integer'
+        assert isinstance(n_queries, int), 'The given n_queries is not an integer, but is {}'.format(type(n_queries).__name__)
         self.n_queries = n_queries
 
         self.targets = None
@@ -65,7 +70,7 @@ class Experiment:
                         [self.generator.sample(b) for b in self.labels]]
 
     def run_shadows(self, model, hyperparams):
-        assert issubclass(model, Model), 'The given model is not an instance of Model'
+        assert issubclass(model, Model), 'The given model is not a subclass of Model'
 
         self.shadow_labels = [False] * self.n_shadows + [True] * self.n_shadows
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
@@ -75,7 +80,7 @@ class Experiment:
         assert self.targets is not None
         assert self.shadow_models is not None
 
-        meta_classifier = LogisticRegression() # Should be DeepSets model
+        meta_classifier = LogisticRegression(max_iter=250) # Should be DeepSets model
 
         train = pd.DataFrame(data=[s.parameters().flatten() for s in self.shadow_models])
         test = pd.DataFrame(data=[t.parameters().flatten() for t in self.targets])
@@ -85,12 +90,11 @@ class Experiment:
 
         return (accuracy_score(self.labels, y_pred) - 0.5) * 2  # Privacy Loss
 
-
     def run_blackbox(self):
         assert self.targets is not None
         assert self.shadow_models is not None
 
-        meta_classifier = LogisticRegression()
+        meta_classifier = LogisticRegression(max_iter=250)
 
         queries = pd.concat([self.generator.sample(True), self.generator.sample(False)]).sample(self.n_queries)
 
@@ -103,14 +107,23 @@ class Experiment:
         return (accuracy_score(self.labels, y_pred) - 0.5) * 2  # Privacy Loss
 
     def prepare_and_run_all(self):
+        logger.info('Training target models...')
         self.prepare_attacks()
+
+        logger.info('Training shadow models of same class as target models...')
         self.run_shadows(self.model, self.hyperparams)
 
         results = list()
+        logger.info('Running white-box attack...')
         results.append(self.run_whitebox())  # White-Box attack
+
+        logger.info('Running grey-box attack...')
         results.append(self.run_blackbox())  # Grey-Box attack
 
+        logger.info('Training shadow models of default class...')
         self.run_shadows(DEFAULT_MODEL, DEFAULT_HYPERPARAMS)
+
+        logger.info('Running black-box attack...')
         results.append(self.run_blackbox())  # Black-Box attack
 
         return {'whitebox': results[0],

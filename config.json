@@ -1,6 +1,6 @@
 {
   "n_targets": 100,
-  "n_shadows": 250,
+  "n_shadows": 1000,
   "feature_transformation": "Sorting",
   "model_params": {
     "input_size": 4,

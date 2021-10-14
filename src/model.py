@@ -144,7 +144,7 @@ class MLP(Model):
         for X, _ in loader:
             preds.append(self.model(X).cpu())
 
-        return torch.cat(preds, dim=1).view(-1, preds[0].shape[3]).detach().numpy()
+        return np.nan_to_num(torch.cat(preds, dim=0).detach().numpy())
 
     def parameters(self):
         params = self.model.state_dict()

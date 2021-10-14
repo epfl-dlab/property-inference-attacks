@@ -28,12 +28,21 @@ def main():
     # Define experiments
     experiments = dict()
 
+    if 'feature_transformation' in runconfig.keys():
+        ft = runconfig['feature_transformation']
+    else:
+        ft = None
+
     gen = GaussianGenerator()
-    model = LogReg
-    experiments['Multivariate Gaussian'] = Experiment(gen, 'label', model, runconfig['n_targets'], runconfig['n_shadows'], runconfig['model_params'])
+    model = MLP
+    experiments['Multivariate Gaussian'] = Experiment(gen, 'label', model, runconfig['n_targets'],
+                                                      runconfig['n_shadows'], runconfig['model_params'],
+                                                      feature_transformation=ft)
 
     gen = IndependentPropertyGenerator()
-    experiments['Independent Property'] = Experiment(gen, 'label', model, runconfig['n_targets'], runconfig['n_shadows'], runconfig['model_params'])
+    experiments['Independent Property'] = Experiment(gen, 'label', model, runconfig['n_targets'],
+                                                     runconfig['n_shadows'], runconfig['model_params'],
+                                                     feature_transformation=ft)
 
     # Run experiments
     results = dict()

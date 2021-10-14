@@ -69,9 +69,11 @@ class Model:
         raise NotImplementedError
 
     def parameters(self):
-        """Returns the model's parameters in a list format
+        """Returns the model's parameters in a as a numpy array, or a list of numpy arrays.
 
-        Returns: list of parameters
+        A weight matrix and bias vector going together should be concatenated
+
+        Returns: the model's parameters, as an array or a list of arrays
         """
         # In canonical form only
 
@@ -145,4 +147,10 @@ class MLP(Model):
         return torch.cat(preds, dim=1).view(-1, preds[0].shape[3]).detach().numpy()
 
     def parameters(self):
-        return np.array(self.model.get_params().values())
+        params = self.model.state_dict()
+        out = list()
+        for i in [0, 2, 4]:
+            w = params['{}.weight'.format(i)].detach().numpy()
+            b = params['{}.bias'.format(i)].view(-1, 1).detach().numpy()
+            out.append(np.concatenate([w, b], axis=1))
+        return out

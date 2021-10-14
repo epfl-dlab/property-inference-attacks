@@ -6,6 +6,7 @@ from sklearn.metrics import accuracy_score
 from src.generator import Generator
 from src.model import Model, LogReg, MLP
 from src import logger
+from src.utils.model_utils import transform_parameters
 
 NUM_TREADS = 8
 DEFAULT_MODEL = LogReg
@@ -23,12 +24,12 @@ DEFAULT_HYPERPARAMS = {
 
 
 class Experiment:
-    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1000):
+    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1000, feature_transformation=None):
         """Object representing an experiment, based on its data generator and model pair
 
         Args:
             generator: a Generator object, used to query data
-            model: a Model class that represents the kind of model to be used
+            model: a Model class that represents the feature_transformation of model to be used
             n_targets: the number of target pairs used for each experiment
             n_shadows: the number of shadow model pairs run for this experiment
             hyperparams: dictionary containing every useful hyper-parameter for the Model
@@ -58,6 +59,13 @@ class Experiment:
         assert isinstance(n_queries, int), 'The given n_queries is not an integer, but is {}'.format(type(n_queries).__name__)
         self.n_queries = n_queries
 
+        if feature_transformation is not None \
+            and feature_transformation != 'Sorting' \
+                and feature_transformation != 'Sorting':
+            raise AttributeError('feature_transformation should be either None, '
+                                 'DeepSets or Sorting, but is {}'.format(feature_transformation))
+        self.feature_transformation = feature_transformation
+
         self.targets = None
         self.labels = None
 
@@ -82,8 +90,13 @@ class Experiment:
 
         meta_classifier = LogisticRegression(max_iter=250) # Should be DeepSets model
 
-        train = pd.DataFrame(data=[s.parameters().flatten() for s in self.shadow_models])
-        test = pd.DataFrame(data=[t.parameters().flatten() for t in self.targets])
+        train = pd.DataFrame(data=[transform_parameters(s.parameters(),
+                                                        feature_transformation=self.feature_transformation)
+                                   for s in self.shadow_models])
+
+        test = pd.DataFrame(data=[transform_parameters(t.parameters(),
+                                                       feature_transformation=self.feature_transformation)
+                                  for t in self.targets])
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)

@@ -34,7 +34,7 @@ class Model:
         X = torch.tensor(X.values.astype(np.float32), device=self.device)
         y = torch.tensor(y.values.astype(np.int64), device=self.device)
         data = torch.utils.data.TensorDataset(X, y)
-        loader = torch.utils.data.DataLoader(dataset=data, batch_size=bs, shuffle=True)
+        loader = torch.utils.data.DataLoader(dataset=data, batch_size=bs, shuffle=train)
 
         return loader
 

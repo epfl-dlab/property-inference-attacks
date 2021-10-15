@@ -1,6 +1,6 @@
 {
   "n_targets": 100,
-  "n_shadows": 1000,
+  "n_shadows": 200,
   "sort_model_parameters": true,
   "model_params": {
     "input_size": 4,

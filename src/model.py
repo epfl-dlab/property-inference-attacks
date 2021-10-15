@@ -69,13 +69,15 @@ class Model:
         raise NotImplementedError
 
     def parameters(self):
-        """Returns the model's parameters in a as a numpy array, or a list of numpy arrays.
+        """Returns the model's parameters
 
-        A weight matrix and bias vector going together should be concatenated
+        If the model has only one layer, or is not a DNN, as a numpy array
+        If the model has multiple layers without biases, as a list of numpy arrays representing each layer
+        If the model has multiple layers with weights and biases, arrays of the corresponding weights and biases are
+        grouped in a list, with weights going before biases
 
-        Returns: the model's parameters, as an array or a list of arrays
+        Returns: the model's parameters
         """
-        # In canonical form only
 
         return []
 
@@ -150,7 +152,7 @@ class MLP(Model):
         params = self.model.state_dict()
         out = list()
         for i in [0, 2, 4]:
-            w = params['{}.weight'.format(i)].detach().numpy()
-            b = params['{}.bias'.format(i)].view(-1, 1).detach().numpy()
-            out.append(np.nan_to_num(np.concatenate([w, b], axis=1)))
+            w = np.nan_to_num(params['{}.weight'.format(i)].detach().numpy())
+            b = np.nan_to_num(params['{}.bias'.format(i)].view(-1, 1).detach().numpy())
+            out.append([w, b])
         return out

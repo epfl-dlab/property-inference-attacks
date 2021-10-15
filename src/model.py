@@ -152,5 +152,5 @@ class MLP(Model):
         for i in [0, 2, 4]:
             w = params['{}.weight'.format(i)].detach().numpy()
             b = params['{}.bias'.format(i)].view(-1, 1).detach().numpy()
-            out.append(np.concatenate([w, b], axis=1))
+            out.append(np.nan_to_num(np.concatenate([w, b], axis=1)))
         return out

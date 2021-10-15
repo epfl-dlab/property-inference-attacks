@@ -24,7 +24,7 @@ DEFAULT_HYPERPARAMS = {
 
 
 class Experiment:
-    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1000, feature_transformation=None):
+    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1000, sort_params=False):
         """Object representing an experiment, based on its data generator and model pair
 
         Args:
@@ -59,12 +59,8 @@ class Experiment:
         assert isinstance(n_queries, int), 'The given n_queries is not an integer, but is {}'.format(type(n_queries).__name__)
         self.n_queries = n_queries
 
-        if feature_transformation is not None \
-            and feature_transformation != 'Sorting' \
-                and feature_transformation != 'Sorting':
-            raise AttributeError('feature_transformation should be either None, '
-                                 'DeepSets or Sorting, but is {}'.format(feature_transformation))
-        self.feature_transformation = feature_transformation
+        assert isinstance(sort_params, bool), 'The given sort_params is not a boolean, but is {}'.format(type(sort_params).__name__)
+        self.sort_params = sort_params
 
         self.targets = None
         self.labels = None
@@ -90,12 +86,10 @@ class Experiment:
 
         meta_classifier = LogisticRegression(max_iter=250) # Should be DeepSets model
 
-        train = pd.DataFrame(data=[transform_parameters(s.parameters(),
-                                                        feature_transformation=self.feature_transformation)
+        train = pd.DataFrame(data=[transform_parameters(s.parameters(), sort=self.sort_params)
                                    for s in self.shadow_models])
 
-        test = pd.DataFrame(data=[transform_parameters(t.parameters(),
-                                                       feature_transformation=self.feature_transformation)
+        test = pd.DataFrame(data=[transform_parameters(t.parameters(), sort=self.sort_params)
                                   for t in self.targets])
 
         meta_classifier.fit(train, self.shadow_labels)

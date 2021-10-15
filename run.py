@@ -28,21 +28,21 @@ def main():
     # Define experiments
     experiments = dict()
 
-    if 'feature_transformation' in runconfig.keys():
-        ft = runconfig['feature_transformation']
+    if 'sort_model_parameters' in runconfig.keys():
+        sort_params = runconfig['sort_model_parameters']
     else:
-        ft = None
+        sort_params = False
 
     gen = GaussianGenerator()
     model = MLP
     experiments['Multivariate Gaussian'] = Experiment(gen, 'label', model, runconfig['n_targets'],
                                                       runconfig['n_shadows'], runconfig['model_params'],
-                                                      feature_transformation=ft)
+                                                      sort_params=sort_params)
 
     gen = IndependentPropertyGenerator()
     experiments['Independent Property'] = Experiment(gen, 'label', model, runconfig['n_targets'],
                                                      runconfig['n_shadows'], runconfig['model_params'],
-                                                     feature_transformation=ft)
+                                                     sort_params=sort_params)
 
     # Run experiments
     results = dict()

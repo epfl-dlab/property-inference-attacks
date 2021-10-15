@@ -31,7 +31,7 @@ def sort_parameters(parameters):
     out = []
     for i in range(len(parameters)-1):
         if isinstance(parameters[i], list):
-            order = np.argsort(np.abs(parameters[i][0].sum(axis=1)))
+            order = np.argsort(parameters[i][0].sum(axis=1))
             out.append(parameters[i][0][order, :].flatten())
             out.append(parameters[i][1][order, :].flatten())
         else:

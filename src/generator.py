@@ -28,7 +28,7 @@ class GaussianGenerator(Generator):
         cov = eye(5)
 
         for i in range(1, 5):
-            cov[0, i] = cov[i, 0] = 0.1
+            cov[0, i] = cov[i, 0] = 0.5
 
         data = DataFrame(data=multivariate_normal(mean, cov, size=1024), columns=['label', 'f1', 'f2', 'f3', 'f4'])
         data['label'] = (data['label'] > 0).astype('int32')

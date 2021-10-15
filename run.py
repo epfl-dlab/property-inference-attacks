@@ -35,9 +35,13 @@ def main():
 
     gen = GaussianGenerator()
     model = MLP
-    experiments['Multivariate Gaussian'] = Experiment(gen, 'label', model, runconfig['n_targets'],
+    experiments['Multivariate Gaussian w/ Sort'] = Experiment(gen, 'label', model, runconfig['n_targets'],
                                                       runconfig['n_shadows'], runconfig['model_params'],
-                                                      sort_params=sort_params)
+                                                      sort_params=True)
+
+    experiments['Multivariate Gaussian w/o Sort'] = Experiment(gen, 'label', model, runconfig['n_targets'],
+                                                      runconfig['n_shadows'], runconfig['model_params'],
+                                                      sort_params=False)
 
     gen = IndependentPropertyGenerator()
     experiments['Independent Property'] = Experiment(gen, 'label', model, runconfig['n_targets'],

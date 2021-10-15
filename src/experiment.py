@@ -1,6 +1,8 @@
 import pandas as pd
+import numpy as np
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
 from src.generator import Generator
@@ -72,6 +74,10 @@ class Experiment:
         self.labels = [False]*self.n_targets + [True]*self.n_targets
         self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
                         [self.generator.sample(b) for b in self.labels]]
+
+        mean_acc = np.mean([accuracy_score(data['label'], self.targets[i].predict(data)) for i, data in
+                            enumerate([self.generator.sample(b) for b in self.labels])])
+        logger.debug('Model accuracy: {:.2%}'.format(mean_acc))
 
     def run_shadows(self, model, hyperparams):
         assert issubclass(model, Model), 'The given model is not a subclass of Model'

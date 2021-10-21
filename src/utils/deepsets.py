@@ -1,6 +1,9 @@
+from collections import Iterator
+
 import torch
 import torch.nn as nn
 import numpy as np
+from torch.nn import Parameter
 
 
 class DeepSets(nn.Module):
@@ -12,9 +15,11 @@ class DeepSets(nn.Module):
         elif isinstance(param, list):
             self.reducer = list()
             for i, layer in enumerate(param):
-                dim = layer.shape[1]
+
                 if isinstance(layer, list):
-                    dim += 1
+                    dim = layer[0].shape[1] + 1
+                else:
+                    dim = layer.shape[1]
 
                 self.reducer.append(
                     nn.Sequential(nn.Linear(dim, 2*dim), nn.ReLU(),
@@ -26,7 +31,7 @@ class DeepSets(nn.Module):
             nn.Linear(dim, 2*dim), nn.ReLU(),
             nn.Linear(2*dim, 2*latent_dim), nn.ReLU(),
             nn.Linear(2*latent_dim, latent_dim), nn.ReLU(),
-            nn.Linear(latent_dim, 2), nn.Softmax()
+            nn.Linear(latent_dim, 2), nn.Softmax(dim=0)
         )
 
     def forward(self, x):
@@ -36,14 +41,20 @@ class DeepSets(nn.Module):
         l = list()
         for i, layer in enumerate(x):
             if isinstance(layer, list):
-                layer = np.concatenate(layer, dim=1)
+                layer = np.concatenate(layer, axis=1)
 
-            layer = torch.tensor(layer, dtype=torch.float64)
+            layer = torch.tensor(layer, dtype=torch.float32)
             n = self.reducer[i](layer)
             l.append(n.sum(axis=0))
 
-        x = torch.cat(l, dim=1)
+        x = torch.cat(l)
         return self.classifier(x)
+
+    def parameters(self, recurse: bool = True) -> Iterator[Parameter]:
+        params = list(self.classifier.parameters())
+        for r in self.reducer:
+            params.extend(list(r.parameters()))
+        return params
 
     def fit(self, parameters, labels):
         opt = torch.optim.Adam(self.parameters())
@@ -51,7 +62,7 @@ class DeepSets(nn.Module):
         for i, p in enumerate(parameters):
             opt.zero_grad()
             y_pred = self.forward(p)
-            loss = criterion(y_pred, labels[i])
+            loss = criterion(y_pred.view(1, -1), torch.tensor(labels[i], dtype=torch.int64).view(1))
             loss.backward()
             opt.step()
 

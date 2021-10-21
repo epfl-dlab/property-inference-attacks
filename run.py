@@ -34,19 +34,29 @@ def main():
         sort_params = False
 
     gen = GaussianGenerator()
-    model = MLP
-    experiments['Multivariate Gaussian w/ Sort'] = Experiment(gen, 'label', model, runconfig['n_targets'],
+    logreg = LogReg
+    mlp = MLP
+
+    experiments['LogReg Multivariate Gaussian'] = Experiment(gen, 'label', logreg, runconfig['n_targets'],
+                                                      runconfig['n_shadows'], runconfig['model_params'],
+                                                      sort_params=False)
+
+    experiments['MLP Multivariate Gaussian w/ Sort'] = Experiment(gen, 'label', mlp, runconfig['n_targets'],
                                                       runconfig['n_shadows'], runconfig['model_params'],
                                                       sort_params=True)
 
-    experiments['Multivariate Gaussian w/o Sort'] = Experiment(gen, 'label', model, runconfig['n_targets'],
+    experiments['MLP Multivariate Gaussian w/o Sort'] = Experiment(gen, 'label', mlp, runconfig['n_targets'],
                                                       runconfig['n_shadows'], runconfig['model_params'],
                                                       sort_params=False)
 
     gen = IndependentPropertyGenerator()
-    experiments['Independent Property'] = Experiment(gen, 'label', model, runconfig['n_targets'],
+    experiments['LogReg Independent Property'] = Experiment(gen, 'label', logreg, runconfig['n_targets'],
                                                      runconfig['n_shadows'], runconfig['model_params'],
-                                                     sort_params=sort_params)
+                                                     sort_params=False)
+
+    experiments['MLP Independent Property'] = Experiment(gen, 'label', mlp, runconfig['n_targets'],
+                                                     runconfig['n_shadows'], runconfig['model_params'],
+                                                     sort_params=True)
 
     # Run experiments
     results = dict()

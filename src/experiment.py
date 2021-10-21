@@ -8,6 +8,7 @@ from sklearn.metrics import accuracy_score
 from src.generator import Generator
 from src.model import Model, LogReg, MLP
 from src import logger
+from src.utils.deepsets import DeepSets
 from src.utils.model_utils import transform_parameters
 
 NUM_TREADS = 8
@@ -86,20 +87,30 @@ class Experiment:
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
                               [self.generator.sample(b) for b in self.shadow_labels]]
 
-    def run_whitebox(self):
+    def run_whitebox(self, deepsets):
         assert self.targets is not None
         assert self.shadow_models is not None
 
-        meta_classifier = LogisticRegression(max_iter=250) # Should be DeepSets model
+        if not deepsets:
+            meta_classifier = LogisticRegression(max_iter=250) # Should be DeepSets model
 
-        train = pd.DataFrame(data=[transform_parameters(s.parameters(), sort=self.sort_params)
-                                   for s in self.shadow_models])
+            train = pd.DataFrame(data=[transform_parameters(s.parameters(), sort=self.sort_params)
+                                    for s in self.shadow_models])
 
-        test = pd.DataFrame(data=[transform_parameters(t.parameters(), sort=self.sort_params)
+            test = pd.DataFrame(data=[transform_parameters(t.parameters(), sort=self.sort_params)
                                   for t in self.targets])
 
-        meta_classifier.fit(train, self.shadow_labels)
-        y_pred = meta_classifier.predict(test)
+            meta_classifier.fit(train, self.shadow_labels)
+            y_pred = meta_classifier.predict(test)
+
+        else:
+            meta_classifier = DeepSets(self.shadow_models[0].parameters())
+
+            train = [s.parameters() for s in self.shadow_models]
+            test = [t.parameters() for t in self.targets]
+
+            meta_classifier.fit(train, self.shadow_labels)
+            y_pred = meta_classifier.predict(test)
 
         return (accuracy_score(self.labels, y_pred) - 0.5) * 2  # Privacy Loss
 
@@ -119,7 +130,7 @@ class Experiment:
 
         return (accuracy_score(self.labels, y_pred) - 0.5) * 2  # Privacy Loss
 
-    def prepare_and_run_all(self):
+    def prepare_and_run_all(self, deepsets=False):
         logger.info('Training target models...')
         self.prepare_attacks()
 
@@ -128,7 +139,7 @@ class Experiment:
 
         results = list()
         logger.info('Running white-box attack...')
-        results.append(self.run_whitebox())  # White-Box attack
+        results.append(self.run_whitebox(deepsets))  # White-Box attack
 
         logger.info('Running grey-box attack...')
         results.append(self.run_blackbox())  # Grey-Box attack

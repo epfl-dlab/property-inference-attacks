@@ -76,9 +76,9 @@ class Experiment:
         self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
                         [self.generator.sample(b) for b in self.labels]]
 
-        scores = [mean_squared_error(data[self.label_col], self.targets[i].predict(data)) for i, data in
+        scores = [accuracy_score(data[self.label_col], self.targets[i].predict(data)) for i, data in
                   enumerate([self.generator.sample(b) for b in self.labels])]
-        logger.debug('Target models MSE - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
+        logger.debug('Target models accuracy - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
             np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_shadows(self, model, hyperparams):
@@ -88,10 +88,10 @@ class Experiment:
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
                               [self.generator.sample(b) for b in self.shadow_labels]]
 
-        scores = [mean_squared_error(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
+        scores = [accuracy_score(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
                       enumerate([self.generator.sample(b) for b in self.shadow_labels])]
-        logger.debug('Shadow models MSE ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
-            model.__class__.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
+        logger.debug('Shadow models accuracy ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
+            model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_whitebox(self, deepsets):
         assert self.targets is not None
@@ -128,8 +128,8 @@ class Experiment:
 
         queries = pd.concat([self.generator.sample(True), self.generator.sample(False)]).sample(self.n_queries)
 
-        train = pd.DataFrame(data=[s.predict_proba(queries).flatten() for s in self.shadow_models])
-        test  = pd.DataFrame(data=[s.predict_proba(queries).flatten() for s in self.targets])
+        train = pd.DataFrame(data=[s.predict(queries).flatten() for s in self.shadow_models])
+        test  = pd.DataFrame(data=[s.predict(queries).flatten() for s in self.targets])
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)

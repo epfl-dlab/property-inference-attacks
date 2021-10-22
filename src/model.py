@@ -4,6 +4,7 @@ import torch.nn as nn
 import pandas as pd
 
 from sklearn.linear_model import LogisticRegression
+from torch.nn.functional import softmax
 
 
 class Model:
@@ -40,32 +41,34 @@ class Model:
 
     def fit(self, data):
         """Fits the model according to the given data
-
         Args:
             data: DataFrame containing all useful data
-
         Returns: Model, the model itself
         """
         raise NotImplementedError
 
     def predict(self, data):
         """Makes predictions on the given data
-
         Args:
             data: DataFrame containing all useful data
-
         Returns: np.array containing predictions
+        """
+        return self.predict_proba(data).argmax(axis=1)
+
+    def predict_proba(self, data):
+        """Outputs prediction probability scores for the given data
+        Args:
+            data: DataFrame containing all useful data
+        Returns:np.array containing probability scores
         """
         raise NotImplementedError
 
     def parameters(self):
         """Returns the model's parameters
-
         If the model has only one layer, or is not a DNN, as a numpy array
         If the model has multiple layers without biases, as a list of numpy arrays representing each layer
         If the model has multiple layers with weights and biases, arrays of the corresponding weights and biases are
         grouped in a list, with weights going before biases
-
         Returns: the model's parameters
         """
 
@@ -81,8 +84,8 @@ class LogReg(Model):
         self.model.fit(data.drop(self.label_col, axis=1), data[self.label_col])
         return self
 
-    def predict(self, data):
-        return self.model.predict(data.drop(self.label_col, axis=1))
+    def predict_proba(self, data):
+        return self.model.predict_proba(data.drop(self.label_col, axis=1))
 
     def parameters(self):
         return np.concatenate([self.model.intercept_, self.model.coef_.flatten()])
@@ -116,7 +119,7 @@ class MLP(Model):
         loader = self._prepare_data(data, bs=self.bs, train=True)
 
         opt = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        criterion = nn.MSELoss()
+        criterion = nn.CrossEntropyLoss()
 
         for _ in range(self.epochs):
             for X, y_true in loader:
@@ -128,13 +131,13 @@ class MLP(Model):
 
         return self
 
-    def predict(self, data):
+    def predict_proba(self, data):
         loader = self._prepare_data(data, bs=self.bs, train=False)
 
         preds = list()
 
         for X, _ in loader:
-            preds.append(self.model(X).cpu())
+            preds.append(softmax(self.model(X).cpu(), dim=1))
 
         return np.nan_to_num(torch.cat(preds, dim=0).detach().numpy())
 

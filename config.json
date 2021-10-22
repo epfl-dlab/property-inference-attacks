@@ -1,9 +1,9 @@
 {
-  "n_targets": 10,
-  "n_shadows": 50,
+  "n_targets": 256,
+  "n_shadows": 2048,
   "sort_model_parameters": true,
   "model_params": {
-    "input_size": 4,
+    "input_size": 5,
     "hidden_size": 5,
     "num_classes": 2,
     "epochs": 10,

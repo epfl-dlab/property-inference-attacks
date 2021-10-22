@@ -31,7 +31,6 @@ class GaussianGenerator(Generator):
             cov[0, i] = cov[i, 0] = 0.4
 
         data = DataFrame(data=multivariate_normal(mean, cov, size=1024), columns=['label', 'f1', 'f2', 'f3', 'f4', 'f5'])
-        data['label'] = (data['label'] > 0).astype('int32')
 
         return data
 
@@ -47,6 +46,5 @@ class IndependentPropertyGenerator(Generator):
             cov[0, i] = cov[i, 0] = 0.4
 
         data = DataFrame(data=multivariate_normal(mean, cov, size=1024), columns=['label', 'f1', 'f2', 'f3', 'f4', 'f5'])
-        data['label'] = (data['label'] > 0).astype('int32')
 
         return data

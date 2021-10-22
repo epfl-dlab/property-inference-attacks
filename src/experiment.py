@@ -3,7 +3,7 @@ import numpy as np
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, mean_squared_error
 
 from src.generator import Generator
 from src.model import Model, LogReg, MLP
@@ -76,9 +76,10 @@ class Experiment:
         self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
                         [self.generator.sample(b) for b in self.labels]]
 
-        mean_acc = np.mean([accuracy_score(data['label'], self.targets[i].predict(data)) for i, data in
-                            enumerate([self.generator.sample(b) for b in self.labels])])
-        logger.debug('Model accuracy: {:.2%}'.format(mean_acc))
+        scores = [mean_squared_error(data[self.label_col], self.targets[i].predict(data)) for i, data in
+                  enumerate([self.generator.sample(b) for b in self.labels])]
+        logger.debug('Target models MSE - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
+            np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_shadows(self, model, hyperparams):
         assert issubclass(model, Model), 'The given model is not a subclass of Model'
@@ -87,12 +88,17 @@ class Experiment:
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
                               [self.generator.sample(b) for b in self.shadow_labels]]
 
+        scores = [mean_squared_error(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
+                      enumerate([self.generator.sample(b) for b in self.shadow_labels])]
+        logger.debug('Shadow models MSE ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
+            model.__class__.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
+
     def run_whitebox(self, deepsets):
         assert self.targets is not None
         assert self.shadow_models is not None
 
         if not deepsets:
-            meta_classifier = LogisticRegression(max_iter=250) # Should be DeepSets model
+            meta_classifier = LogisticRegression(max_iter=1024)
 
             train = pd.DataFrame(data=[transform_parameters(s.parameters(), sort=self.sort_params)
                                     for s in self.shadow_models])

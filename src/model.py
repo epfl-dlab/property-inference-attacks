@@ -56,16 +56,6 @@ class Model:
 
         Returns: np.array containing predictions
         """
-        return self.predict_proba(data).argmax(axis=1)
-
-    def predict_proba(self, data):
-        """Outputs prediction probability scores for the given data
-
-        Args:
-            data: DataFrame containing all useful data
-
-        Returns:np.array containing probability scores
-        """
         raise NotImplementedError
 
     def parameters(self):
@@ -91,8 +81,8 @@ class LogReg(Model):
         self.model.fit(data.drop(self.label_col, axis=1), data[self.label_col])
         return self
 
-    def predict_proba(self, data):
-        return self.model.predict_proba(data.drop(self.label_col, axis=1))
+    def predict(self, data):
+        return self.model.predict(data.drop(self.label_col, axis=1))
 
     def parameters(self):
         return np.concatenate([self.model.intercept_, self.model.coef_.flatten()])
@@ -115,7 +105,7 @@ class MLP(Model):
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, num_classes),
-            nn.Softmax(dim=1)
+            nn.ReLU()
         ).to(self.device)
 
         self.epochs = hyperparams['epochs']
@@ -126,7 +116,7 @@ class MLP(Model):
         loader = self._prepare_data(data, bs=self.bs, train=True)
 
         opt = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.MSELoss()
 
         for _ in range(self.epochs):
             for X, y_true in loader:
@@ -138,7 +128,7 @@ class MLP(Model):
 
         return self
 
-    def predict_proba(self, data):
+    def predict(self, data):
         loader = self._prepare_data(data, bs=self.bs, train=False)
 
         preds = list()

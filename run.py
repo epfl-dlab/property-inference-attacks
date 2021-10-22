@@ -56,11 +56,13 @@ def main():
     experiments['LogReg Independent Property'] = Experiment(gen, 'label', logreg, runconfig['n_targets'],
                                                      runconfig['n_shadows'], runconfig['model_params'],
                                                      sort_params=False)
-    """
+    
 
     experiments['MLP Independent Property'] = Experiment(gen, 'label', mlp, runconfig['n_targets'],
                                                      runconfig['n_shadows'], runconfig['model_params'],
                                                      sort_params=True)
+                                                     
+    """
 
     # Run experiments
     results = dict()

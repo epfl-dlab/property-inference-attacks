@@ -9,8 +9,10 @@ from src import logger
 
 
 class DeepSets(nn.Module):
-    def __init__(self, param, latent_dim=10, epochs=20):
+    def __init__(self, param, latent_dim=5, epochs=100, lr=1e-3):
         super().__init__()
+
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         if isinstance(param, np.ndarray):
             param = list(param)
@@ -29,7 +31,7 @@ class DeepSets(nn.Module):
                 self.reducer.append(
                     nn.Sequential(nn.Linear(dim, 2*dim), nn.ReLU(),
                                   nn.Linear(2*dim, 2*latent_dim), nn.ReLU(),
-                                  nn.Linear(2*latent_dim, latent_dim),  nn.ReLU()))
+                                  nn.Linear(2*latent_dim, latent_dim),  nn.ReLU()).to(self.device))
 
         dim = len(param) * latent_dim
         self.classifier = nn.Sequential(
@@ -37,9 +39,10 @@ class DeepSets(nn.Module):
             nn.Linear(2*dim, 2*latent_dim), nn.ReLU(),
             nn.Linear(2*latent_dim, latent_dim), nn.ReLU(),
             nn.Linear(latent_dim, 2), nn.Softmax(dim=0)
-        )
+        ).to(self.device)
 
         self.epochs = epochs
+        self.lr = lr
 
     def forward(self, x):
         if isinstance(x, np.ndarray):
@@ -51,7 +54,7 @@ class DeepSets(nn.Module):
             if isinstance(layer, list):
                 layer = np.concatenate(layer, axis=1)
 
-            layer = torch.tensor(layer, dtype=torch.float32)
+            layer = torch.tensor(layer, dtype=torch.float32, device=self.device)
 
             if context is not None:
                 layer = torch.cat((layer, context.repeat((layer.shape[0], 1))), dim=1)
@@ -75,14 +78,14 @@ class DeepSets(nn.Module):
         return params
 
     def fit(self, parameters, labels):
-        opt = torch.optim.Adam(self.parameters(), lr=1e-4)
+        opt = torch.optim.SGD(self.parameters(), lr=self.lr)
         criterion = torch.nn.CrossEntropyLoss()
         for e in range(self.epochs):
             tot_loss = 0
             for i, p in enumerate(parameters):
                 opt.zero_grad()
                 y_pred = self.forward(p)
-                loss = criterion(y_pred.view(1, -1), torch.tensor(labels[i], dtype=torch.int64).view(1))
+                loss = criterion(y_pred.view(1, -1), torch.tensor(labels[i], dtype=torch.int64, device=self.device).view(1))
                 tot_loss += loss.item()
                 loss.backward()
                 opt.step()

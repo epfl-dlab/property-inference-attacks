@@ -21,16 +21,16 @@ class Generator:
 
 class GaussianGenerator(Generator):
     def sample(self, b):
-        mean = array([0]*6)
+        mean = array([0]*5)
         if b:
-            mean[5] = 1
+            mean[4] = 1
 
-        cov = eye(6)
+        cov = eye(5)
 
-        for i in range(1, 6):
-            cov[0, i] = cov[i, 0] = 0.4
+        for i in range(1, 5):
+            cov[0, i] = cov[i, 0] = 0.5
 
-        data = DataFrame(data=multivariate_normal(mean, cov, size=1024), columns=['label', 'f1', 'f2', 'f3', 'f4', 'f5'])
+        data = DataFrame(data=multivariate_normal(mean, cov, size=1024), columns=['label', 'f1', 'f2', 'f3', 'f4'])
         data['label'] = (data['label'] > 0).astype('int32')
 
         return data
@@ -38,15 +38,15 @@ class GaussianGenerator(Generator):
 
 class IndependentPropertyGenerator(Generator):
     def sample(self, b):
-        mean = array([0] * 6)
+        mean = array([0] * 5)
         if b:
-            mean[5] = 1
+            mean[4] = 1
 
-        cov = eye(6)
-        for i in range(1, 5):
-            cov[0, i] = cov[i, 0] = 0.4
+        cov = eye(5)
+        for i in range(1, 4):
+            cov[0, i] = cov[i, 0] = 0.5
 
-        data = DataFrame(data=multivariate_normal(mean, cov, size=1024), columns=['label', 'f1', 'f2', 'f3', 'f4', 'f5'])
+        data = DataFrame(data=multivariate_normal(mean, cov, size=1024), columns=['label', 'f1', 'f2', 'f3', 'f4'])
         data['label'] = (data['label'] > 0).astype('int32')
 
         return data

@@ -37,38 +37,45 @@ def main():
     logreg = LogReg
     mlp = MLP
 
-    """
     experiments['LogReg Multivariate Gaussian'] = Experiment(gen, 'label', logreg, runconfig['n_targets'],
                                                       runconfig['n_shadows'], runconfig['model_params'],
                                                       sort_params=False)
 
+    experiments['MLP Multivariate Gaussian DeepSets'] = Experiment(gen, 'label', mlp, runconfig['n_targets'],
+                                                                  runconfig['n_shadows'], runconfig['model_params'],
+                                                                  sort_params=False, deepsets=True)
 
     experiments['MLP Multivariate Gaussian w/ Sort'] = Experiment(gen, 'label', mlp, runconfig['n_targets'],
                                                       runconfig['n_shadows'], runconfig['model_params'],
                                                       sort_params=True)
-    """
+
     experiments['MLP Multivariate Gaussian w/o Sort'] = Experiment(gen, 'label', mlp, runconfig['n_targets'],
                                                       runconfig['n_shadows'], runconfig['model_params'],
                                                       sort_params=False)
 
     gen = IndependentPropertyGenerator()
-    """
     experiments['LogReg Independent Property'] = Experiment(gen, 'label', logreg, runconfig['n_targets'],
                                                      runconfig['n_shadows'], runconfig['model_params'],
                                                      sort_params=False)
-    
 
-    experiments['MLP Independent Property'] = Experiment(gen, 'label', mlp, runconfig['n_targets'],
+    experiments['MLP Independent Property DeepSets'] = Experiment(gen, 'label', mlp, runconfig['n_targets'],
+                                                                 runconfig['n_shadows'], runconfig['model_params'],
+                                                                 sort_params=False, deepsets=True)
+
+    experiments['MLP Independent Property w/ Sort'] = Experiment(gen, 'label', mlp, runconfig['n_targets'],
                                                      runconfig['n_shadows'], runconfig['model_params'],
                                                      sort_params=True)
-                                                     
-    """
+
+    experiments['MLP Independent Property w/o Sort'] = Experiment(gen, 'label', mlp, runconfig['n_targets'],
+                                                                 runconfig['n_shadows'], runconfig['model_params'],
+                                                                 sort_params=False)
+
 
     # Run experiments
     results = dict()
     for k, v in experiments.items():
         logger.info('Running {} Experiment'.format(k))
-        results[k] = v.prepare_and_run_all(deepsets=True)
+        results[k] = v.prepare_and_run_all()
         logger.info('Results of {} Experiment: {}'.format(k, results[k]))
 
     # Output results

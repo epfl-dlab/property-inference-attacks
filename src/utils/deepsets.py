@@ -9,7 +9,7 @@ from src import logger
 
 
 class DeepSets(nn.Module):
-    def __init__(self, param, latent_dim=5, epochs=100, lr=1e-3):
+    def __init__(self, param, latent_dim=10, epochs=100, lr=5e-2):
         super().__init__()
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -78,7 +78,7 @@ class DeepSets(nn.Module):
         return params
 
     def fit(self, parameters, labels):
-        opt = torch.optim.SGD(self.parameters(), lr=self.lr)
+        opt = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=1e-2)
         criterion = torch.nn.CrossEntropyLoss()
         for e in range(self.epochs):
             tot_loss = 0
@@ -89,8 +89,8 @@ class DeepSets(nn.Module):
                 tot_loss += loss.item()
                 loss.backward()
                 opt.step()
-            if e % 5 == 0:
-                logger.debug('Training DeepSets - Epoch {} - Loss={:.2f}'.format(e, tot_loss))
+            if e % 10 == 0 or e == self.epochs-1:
+                logger.debug('Training DeepSets - Epoch {} - Loss={:.4f}'.format(e, tot_loss))
 
     def predict(self, parameters):
         y_pred = list()

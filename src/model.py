@@ -30,7 +30,7 @@ class Model:
             self.train_mean = X.mean()
             self.train_std = X.std()
 
-        X = (X - self.train_mean) / self.train_std
+        # X = (X - self.train_mean) / self.train_std
 
         X = torch.tensor(X.values.astype(np.float32), device=self.device)
         y = torch.tensor(y.values.astype(np.int64), device=self.device)
@@ -118,7 +118,7 @@ class MLP(Model):
     def fit(self, data):
         loader = self._prepare_data(data, bs=self.bs, train=True)
 
-        opt = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        opt = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-2)
         criterion = nn.CrossEntropyLoss()
 
         for _ in range(self.epochs):

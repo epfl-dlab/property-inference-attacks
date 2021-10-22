@@ -27,7 +27,7 @@ DEFAULT_HYPERPARAMS = {
 
 
 class Experiment:
-    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1000, sort_params=False):
+    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1000, sort_params=False, deepsets=False):
         """Object representing an experiment, based on its data generator and model pair
 
         Args:
@@ -65,6 +65,10 @@ class Experiment:
         assert isinstance(sort_params, bool), 'The given sort_params is not a boolean, but is {}'.format(type(sort_params).__name__)
         self.sort_params = sort_params
 
+        assert isinstance(deepsets, bool), 'The given sort_params is not a boolean, but is {}'.format(
+            type(deepsets).__name__)
+        self.deepsets = deepsets
+
         self.targets = None
         self.labels = None
 
@@ -93,11 +97,11 @@ class Experiment:
         logger.debug('Shadow models accuracy ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
             model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
-    def run_whitebox(self, deepsets):
+    def run_whitebox(self):
         assert self.targets is not None
         assert self.shadow_models is not None
 
-        if not deepsets:
+        if not self.deepsets:
             meta_classifier = LogisticRegression(max_iter=1024)
 
             train = pd.DataFrame(data=[transform_parameters(s.parameters(), sort=self.sort_params)
@@ -136,7 +140,7 @@ class Experiment:
 
         return accuracy_score(self.labels, y_pred)
 
-    def prepare_and_run_all(self, deepsets=False):
+    def prepare_and_run_all(self):
         logger.info('Training target models...')
         self.prepare_attacks()
 
@@ -145,7 +149,7 @@ class Experiment:
 
         results = list()
         logger.info('Running white-box attack...')
-        results.append(self.run_whitebox(deepsets))  # White-Box attack
+        results.append(self.run_whitebox())  # White-Box attack
 
         logger.info('Running grey-box attack...')
         results.append(self.run_blackbox())  # Grey-Box attack

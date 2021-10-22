@@ -28,7 +28,7 @@ class GaussianGenerator(Generator):
         cov = eye(6)
 
         for i in range(1, 6):
-            cov[0, i] = cov[i, 0] = 0.5
+            cov[0, i] = cov[i, 0] = 0.4
 
         data = DataFrame(data=multivariate_normal(mean, cov, size=1024), columns=['label', 'f1', 'f2', 'f3', 'f4', 'f5'])
         data['label'] = (data['label'] > 0).astype('int32')
@@ -44,7 +44,7 @@ class IndependentPropertyGenerator(Generator):
 
         cov = eye(6)
         for i in range(1, 5):
-            cov[0, i] = cov[i, 0] = 0.5
+            cov[0, i] = cov[i, 0] = 0.4
 
         data = DataFrame(data=multivariate_normal(mean, cov, size=1024), columns=['label', 'f1', 'f2', 'f3', 'f4', 'f5'])
         data['label'] = (data['label'] > 0).astype('int32')

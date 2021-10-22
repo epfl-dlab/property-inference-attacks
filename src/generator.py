@@ -23,7 +23,7 @@ class GaussianGenerator(Generator):
     def sample(self, b):
         mean = array([0]*5)
         if b:
-            mean[1] = mean[2] = 1
+            mean[4] = 1
 
         cov = eye(5)
 

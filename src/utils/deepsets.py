@@ -7,7 +7,7 @@ from torch.nn import Parameter
 
 
 class DeepSets(nn.Module):
-    def __init__(self, param, latent_dim=10):
+    def __init__(self, param, latent_dim=10, epochs=20):
         super().__init__()
 
         if isinstance(param, np.ndarray):
@@ -34,6 +34,8 @@ class DeepSets(nn.Module):
             nn.Linear(latent_dim, 2), nn.Softmax(dim=0)
         )
 
+        self.epochs = epochs
+
     def forward(self, x):
         if isinstance(x, np.ndarray):
             x = list(x)
@@ -59,12 +61,13 @@ class DeepSets(nn.Module):
     def fit(self, parameters, labels):
         opt = torch.optim.Adam(self.parameters())
         criterion = torch.nn.CrossEntropyLoss()
-        for i, p in enumerate(parameters):
-            opt.zero_grad()
-            y_pred = self.forward(p)
-            loss = criterion(y_pred.view(1, -1), torch.tensor(labels[i], dtype=torch.int64).view(1))
-            loss.backward()
-            opt.step()
+        for _ in range(self.epochs):
+            for i, p in enumerate(parameters):
+                opt.zero_grad()
+                y_pred = self.forward(p)
+                loss = criterion(y_pred.view(1, -1), torch.tensor(labels[i], dtype=torch.int64).view(1))
+                loss.backward()
+                opt.step()
 
     def predict(self, parameters):
         y_pred = list()

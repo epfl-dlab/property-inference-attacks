@@ -112,7 +112,7 @@ class Experiment:
             meta_classifier.fit(train, self.shadow_labels)
             y_pred = meta_classifier.predict(test)
 
-        return (accuracy_score(self.labels, y_pred) - 0.5) * 2  # Privacy Loss
+        return accuracy_score(self.labels, y_pred)
 
     def run_blackbox(self):
         assert self.targets is not None
@@ -128,7 +128,7 @@ class Experiment:
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)
 
-        return (accuracy_score(self.labels, y_pred) - 0.5) * 2  # Privacy Loss
+        return accuracy_score(self.labels, y_pred)
 
     def prepare_and_run_all(self, deepsets=False):
         logger.info('Training target models...')

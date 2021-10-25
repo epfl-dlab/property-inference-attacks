@@ -9,14 +9,14 @@ from src import logger
 
 
 class DeepSets(nn.Module):
-    def __init__(self, param, latent_dim=10, epochs=100, lr=5e-2):
+    def __init__(self, param, latent_dim=10, epochs=100, lr=5e-2, wd=1e-2):
         super().__init__()
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         if isinstance(param, np.ndarray):
             param = list(param)
-        elif isinstance(param, list):
+        if isinstance(param, list):
             self.reducer = list()
             context_size = 0
             for i, layer in enumerate(param):
@@ -25,6 +25,9 @@ class DeepSets(nn.Module):
                     dim = layer[0].shape[1] + 1 + context_size
                     context_size += layer[0].shape[0]*latent_dim
                 else:
+                    if len(layer.shape) < 2:
+                        layer = layer.reshape((1, -1))
+
                     dim = layer.shape[1] + context_size
                     context_size += layer.shape[0] * latent_dim
 
@@ -32,6 +35,9 @@ class DeepSets(nn.Module):
                     nn.Sequential(nn.Linear(dim, 2*dim), nn.ReLU(),
                                   nn.Linear(2*dim, 2*latent_dim), nn.ReLU(),
                                   nn.Linear(2*latent_dim, latent_dim),  nn.ReLU()).to(self.device))
+        else:
+            raise AttributeError('The given param is not a list or ndarray, but is {}'.format(type(param).__name__))
+
 
         dim = len(param) * latent_dim
         self.classifier = nn.Sequential(
@@ -43,6 +49,7 @@ class DeepSets(nn.Module):
 
         self.epochs = epochs
         self.lr = lr
+        self.wd = wd
 
     def forward(self, x):
         if isinstance(x, np.ndarray):
@@ -54,6 +61,8 @@ class DeepSets(nn.Module):
             if isinstance(layer, list):
                 layer = np.concatenate(layer, axis=1)
 
+            if len(layer.shape) < 2:
+                layer = layer.reshape((1, -1))
             layer = torch.tensor(layer, dtype=torch.float32, device=self.device)
 
             if context is not None:
@@ -78,7 +87,7 @@ class DeepSets(nn.Module):
         return params
 
     def fit(self, parameters, labels):
-        opt = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=1e-2)
+        opt = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.wd)
         criterion = torch.nn.CrossEntropyLoss()
         for e in range(self.epochs):
             tot_loss = 0

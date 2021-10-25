@@ -76,9 +76,9 @@ class Model:
 
 
 class LogReg(Model):
-    def __init__(self, label_col, _):
+    def __init__(self, label_col, hyperparams):
         super(LogReg, self).__init__(label_col, None)
-        self.model = LogisticRegression()
+        self.model = LogisticRegression(max_iter=hyperparams.max_iter)
 
     def fit(self, data):
         self.model.fit(data.drop(self.label_col, axis=1), data[self.label_col])

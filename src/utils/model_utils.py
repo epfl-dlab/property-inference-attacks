@@ -4,7 +4,7 @@ import numpy as np
 def transform_parameters(parameters, sort=False):
     if isinstance(parameters, np.ndarray):
         if sort:
-            return parameters.flatten().sort()
+            return np.sort(parameters.flatten())
         else:
             return parameters.flatten()
     elif isinstance(parameters, list):

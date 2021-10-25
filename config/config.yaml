@@ -1,0 +1,8 @@
+defaults:
+   - experiments: test
+   - generators: base
+   - models: base
+   - deepsets: base
+   - _self_
+
+outdir: results

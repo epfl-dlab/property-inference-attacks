@@ -2,32 +2,17 @@ import pandas as pd
 import numpy as np
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, mean_squared_error
+from sklearn.metrics import accuracy_score
+from omegaconf import DictConfig
 
 from src.generator import Generator
-from src.model import Model, LogReg, MLP
+from src.model import Model, LogReg
 from src import logger
 from src.utils.deepsets import DeepSets
 from src.utils.model_utils import transform_parameters
 
-NUM_TREADS = 8
-DEFAULT_MODEL = LogReg
-DEFAULT_HYPERPARAMS = None
-
-"""DEFAULT_MODEL = MLP
-DEFAULT_HYPERPARAMS = {
-    "input_size": 4,
-    "hidden_size": 20,
-    "num_classes": 2,
-    "epochs": 20,
-    "learning_rate": 1e-3,
-    "batch_size": 32
-}"""
-
-
 class Experiment:
-    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1000, sort_params=False, deepsets=False):
+    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1024):
         """Object representing an experiment, based on its data generator and model pair
 
         Args:
@@ -54,7 +39,7 @@ class Experiment:
         self.n_shadows = n_shadows
 
         if hyperparams is not None:
-            assert isinstance(hyperparams, dict), 'The given hyperparameters are not a dictionary, but are {}'.format(type(hyperparams).__name__)
+            assert isinstance(hyperparams, DictConfig), 'The given hyperparameters are not a DictConfig, but are {}'.format(type(hyperparams).__name__)
             self.hyperparams = hyperparams
         else:
             self.hyperparams = dict()
@@ -62,15 +47,11 @@ class Experiment:
         assert isinstance(n_queries, int), 'The given n_queries is not an integer, but is {}'.format(type(n_queries).__name__)
         self.n_queries = n_queries
 
-        assert isinstance(sort_params, bool), 'The given sort_params is not a boolean, but is {}'.format(type(sort_params).__name__)
-        self.sort_params = sort_params
-
-        assert isinstance(deepsets, bool), 'The given sort_params is not a boolean, but is {}'.format(
-            type(deepsets).__name__)
-        self.deepsets = deepsets
-
         self.targets = None
         self.labels = None
+
+        self.shadow_models = None
+        self.shadow_labels = None
 
         self.shadow_models = None
         self.shadow_labels = None
@@ -97,30 +78,29 @@ class Experiment:
         logger.debug('Shadow models accuracy ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
             model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
-    def run_whitebox(self):
-        assert self.targets is not None
-        assert self.shadow_models is not None
+    def run_whitebox_deepsets(self, hyperparams):
+        meta_classifier = DeepSets(self.shadow_models[0].parameters(), latent_dim=hyperparams.latent_dim,
+                                   epochs=hyperparams.epochs, lr=hyperparams.learning_rate, wd=hyperparams.weight_decay)
 
-        if not self.deepsets:
-            meta_classifier = LogisticRegression(max_iter=1024)
+        train = [s.parameters() for s in self.shadow_models]
+        test = [t.parameters() for t in self.targets]
 
-            train = pd.DataFrame(data=[transform_parameters(s.parameters(), sort=self.sort_params)
+        meta_classifier.fit(train, self.shadow_labels)
+        y_pred = meta_classifier.predict(test)
+
+        return accuracy_score(self.labels, y_pred)
+
+    def run_whitebox_sort(self, sort=True):
+        meta_classifier = LogisticRegression(max_iter=1024)
+
+        train = pd.DataFrame(data=[transform_parameters(s.parameters(), sort=sort)
                                     for s in self.shadow_models])
 
-            test = pd.DataFrame(data=[transform_parameters(t.parameters(), sort=self.sort_params)
+        test = pd.DataFrame(data=[transform_parameters(t.parameters(), sort=sort)
                                   for t in self.targets])
 
-            meta_classifier.fit(train, self.shadow_labels)
-            y_pred = meta_classifier.predict(test)
-
-        else:
-            meta_classifier = DeepSets(self.shadow_models[0].parameters())
-
-            train = [s.parameters() for s in self.shadow_models]
-            test = [t.parameters() for t in self.targets]
-
-            meta_classifier.fit(train, self.shadow_labels)
-            y_pred = meta_classifier.predict(test)
+        meta_classifier.fit(train, self.shadow_labels)
+        y_pred = meta_classifier.predict(test)
 
         return accuracy_score(self.labels, y_pred)
 
@@ -139,27 +119,3 @@ class Experiment:
         y_pred = meta_classifier.predict(test)
 
         return accuracy_score(self.labels, y_pred)
-
-    def prepare_and_run_all(self):
-        logger.info('Training target models...')
-        self.prepare_attacks()
-
-        logger.info('Training shadow models of same class as target models...')
-        self.run_shadows(self.model, self.hyperparams)
-
-        results = list()
-        logger.info('Running white-box attack...')
-        results.append(self.run_whitebox())  # White-Box attack
-
-        logger.info('Running grey-box attack...')
-        results.append(self.run_blackbox())  # Grey-Box attack
-
-        logger.info('Training shadow models of default class...')
-        self.run_shadows(DEFAULT_MODEL, DEFAULT_HYPERPARAMS)
-
-        logger.info('Running black-box attack...')
-        results.append(self.run_blackbox())  # Black-Box attack
-
-        return {'whitebox': results[0],
-                'greybox': results[1],
-                'blackbox': results[2]}

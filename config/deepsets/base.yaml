@@ -1,0 +1,4 @@
+latent_dim: 10
+epochs: 100
+learning_rate: 5e-2
+weight_decay: 1e-2

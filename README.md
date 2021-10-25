@@ -24,10 +24,7 @@ The framework is provided with a few, simple unit tests. Run them with:
 
 ## Running an experiment
 
-To run a simple experiment, please simply use the provided `run.py`.
-It accepts the following arguments:
- * `-RC config.json` to specify a config file
- * `-O out.json` to specify an output file for results
+To run a simple experiment, please simply use the provided `run.py`. You can change any experiment parameter with the help of the yaml config files, inside the `config` folder.
  
 ## Framework usage
 

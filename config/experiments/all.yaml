@@ -8,6 +8,8 @@ generators:
   - GaussianGenerator
   - IndependentPropertyGenerator
 runs:
+  - LossTest
+  - ThresholdTest
   - Naive
   - Sort
   - DeepSets

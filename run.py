@@ -45,7 +45,11 @@ def main(cfg: DictConfig):
             for run in cfg.experiments.runs:
                 name = '{} - {} - {}'.format(gen, model, run)
                 logger.info('Running {}...'.format(name))
-                if run == 'Naive':
+                if run == 'LossTest':
+                    experiments[name] = experiment.run_loss_test()
+                elif run == 'ThresholdTest':
+                    experiments[name] = experiment.run_threshold_test()
+                elif run == 'Naive':
                     experiments[name] = experiment.run_whitebox_sort(sort=False)
                 elif run == 'Sort':
                     experiments[name] = experiment.run_whitebox_sort(sort=True)

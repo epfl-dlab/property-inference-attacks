@@ -79,7 +79,39 @@ class Experiment:
         logger.debug('Shadow models accuracy ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
             model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
+    def run_loss_test(self):
+        y_true = [False, True]
+        X_test = [self.generator.sample(b) for b in y_true]
+
+        accuracy = [[accuracy_score(X[self.label_col], t.predict(X)) for X in X_test] for t in self.targets]
+        return accuracy_score(self.labels, [np.argmax(acc) for acc in accuracy])
+
+    def run_threshold_test(self):
+        assert self.targets is not None
+        assert self.shadow_models is not None
+
+        y_true = [True, False]
+        X_test = [self.generator.sample(b) for b in y_true]
+
+        accuracy = np.array([[accuracy_score(X[self.label_col], s.predict(X)) for X in X_test] for s in self.shadow_models])
+        dim = np.argmax(np.sum(accuracy, axis=0))
+
+        thr = 0.0
+        best_acc = 0.0
+        for z in np.arange(0, 1, 1e-2):
+            acc = accuracy_score(self.shadow_labels, (accuracy[:, dim] > z))
+            if acc > best_acc:
+                thr = z
+                best_acc = acc
+
+        accuracy = np.array([accuracy_score(X_test[dim][self.label_col], t.predict(X_test[dim])) for t in self.targets])
+        y_pred = [dim if acc < thr else not dim for acc in accuracy]
+        return accuracy_score(self.labels, y_pred)
+
     def run_whitebox_deepsets(self, hyperparams):
+        assert self.targets is not None
+        assert self.shadow_models is not None
+
         meta_classifier = DeepSets(self.shadow_models[0].parameters(), latent_dim=hyperparams['latent_dim'],
                                    epochs=hyperparams['epochs'], lr=hyperparams['learning_rate'], wd=hyperparams['weight_decay'])
 
@@ -92,6 +124,9 @@ class Experiment:
         return accuracy_score(self.labels, y_pred)
 
     def run_whitebox_sort(self, sort=True):
+        assert self.targets is not None
+        assert self.shadow_models is not None
+
         meta_classifier = LogisticRegression(max_iter=1024)
 
         train = pd.DataFrame(data=[transform_parameters(s.parameters(), sort=sort)

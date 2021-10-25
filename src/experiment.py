@@ -39,7 +39,8 @@ class Experiment:
         self.n_shadows = n_shadows
 
         if hyperparams is not None:
-            assert isinstance(hyperparams, DictConfig), 'The given hyperparameters are not a DictConfig, but are {}'.format(type(hyperparams).__name__)
+            assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
+                'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
             self.hyperparams = hyperparams
         else:
             self.hyperparams = dict()

@@ -1,4 +1,4 @@
-latent_dim: 10
-epochs: 100
-learning_rate: 5e-2
-weight_decay: 1e-2
+latent_dim: 5
+epochs: 20
+learning_rate: 1e-3
+weight_decay: 1e-3

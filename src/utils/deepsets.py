@@ -91,9 +91,9 @@ class DeepSets(nn.Module):
         criterion = torch.nn.CrossEntropyLoss()
         for e in range(self.epochs):
             tot_loss = 0
-            for i, p in enumerate(parameters):
+            for i in np.random.permutation(len(parameters)):
                 opt.zero_grad()
-                y_pred = self.forward(p)
+                y_pred = self.forward(parameters[i])
                 loss = criterion(y_pred.view(1, -1), torch.tensor(labels[i], dtype=torch.int64, device=self.device).view(1))
                 tot_loss += loss.item()
                 loss.backward()

@@ -80,8 +80,8 @@ class Experiment:
             model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_whitebox_deepsets(self, hyperparams):
-        meta_classifier = DeepSets(self.shadow_models[0].parameters(), latent_dim=hyperparams.latent_dim,
-                                   epochs=hyperparams.epochs, lr=hyperparams.learning_rate, wd=hyperparams.weight_decay)
+        meta_classifier = DeepSets(self.shadow_models[0].parameters(), latent_dim=hyperparams['latent_dim'],
+                                   epochs=hyperparams['epochs'], lr=hyperparams['learning_rate'], wd=hyperparams['weight_decay'])
 
         train = [s.parameters() for s in self.shadow_models]
         test = [t.parameters() for t in self.targets]

@@ -28,7 +28,7 @@ def main(cfg: DictConfig):
     experiments = dict()
     gen = GaussianGenerator(1024)
     model = MLP
-    exp = Experiment(gen, 'label_col', model, 256, 2048, cfg.models['MLP'])
+    exp = Experiment(gen, 'label', model, 256, 2048, cfg.models['MLP'])
     logger.info('Training targets...')
     exp.prepare_attacks()
     logger.info('Training shadows...')

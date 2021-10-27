@@ -35,10 +35,10 @@ def main(cfg: DictConfig):
     exp.run_shadows(MLP, cfg.models['MLP'])
 
     for latent_dim in [5, 10 ,20]:
-        for epochs in [5, 10, 20, 50, 100, 250]:
-            for lr in [1e-3, 1e-2, 5e-2, 1e-1, 5e-1, 1]:
-                for wd in [1e-3, 1e-2, 1e-1]:
-                    name = 'latent={} - epochs={} - lr={:.3f} - wd={:.3f}'.format(latent_dim, epochs, lr, wd)
+        for epochs in [20, 50, 100, 250]:
+            for lr in [1e-5, 5e-5, 1e-4, 5e-4, 1e-3]:
+                for wd in [0, 1e-4, 1e-3, 1e-2]:
+                    name = 'latent={} - epochs={} - lr={:.4f} - wd={:.4f}'.format(latent_dim, epochs, lr, wd)
                     hyperparams = {
                         'latent_dim': latent_dim,
                         'epochs': epochs,

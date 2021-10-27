@@ -90,22 +90,22 @@ class Experiment:
         assert self.targets is not None
         assert self.shadow_models is not None
 
-        y_true = [True, False]
+        y_true = [False, True]
         X_test = [self.generator.sample(b) for b in y_true]
 
         accuracy = np.array([[accuracy_score(X[self.label_col], s.predict(X)) for X in X_test] for s in self.shadow_models])
-        dim = np.argmax(np.sum(accuracy, axis=0))
+        k = np.argmax(np.sum(accuracy, axis=0))
 
         thr = 0.0
         best_acc = 0.0
         for z in np.arange(0, 1, 1e-2):
-            acc = accuracy_score(self.shadow_labels, (accuracy[:, dim] > z))
+            acc = accuracy_score(self.shadow_labels, (k if accuracy[:, k] > z else not k))
             if acc > best_acc:
                 thr = z
                 best_acc = acc
 
-        accuracy = np.array([accuracy_score(X_test[dim][self.label_col], t.predict(X_test[dim])) for t in self.targets])
-        y_pred = [dim if acc < thr else not dim for acc in accuracy]
+        accuracy = np.array([accuracy_score(X_test[k][self.label_col], t.predict(X_test[k])) for t in self.targets])
+        y_pred = [k if acc > thr else not k for acc in accuracy]
         return accuracy_score(self.labels, y_pred)
 
     def run_whitebox_deepsets(self, hyperparams):

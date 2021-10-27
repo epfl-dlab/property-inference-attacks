@@ -46,7 +46,7 @@ To run a simple experiment, please simply use the provided `run.py`. You can cha
 
 To run an experiment using a specific `my_experiments.yaml` config file, you should place its yaml config file in `/config/experiments`, and then run:
 
-`python run.py +experiments=my_experiments`
+`python run.py experiments=my_experiments`
  
 ## Framework usage
 

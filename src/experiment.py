@@ -99,7 +99,8 @@ class Experiment:
         thr = 0.0
         best_acc = 0.0
         for z in np.arange(0, 1, 1e-2):
-            acc = accuracy_score(self.shadow_labels, (k if accuracy[:, k] > z else not k))
+            thr_labels = [k if acc > z else not k for acc in accuracy[:, k]]
+            acc = accuracy_score(self.shadow_labels, thr_labels)
             if acc > best_acc:
                 thr = z
                 best_acc = acc

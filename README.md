@@ -47,6 +47,8 @@ To run a simple experiment, please simply use the provided `run.py`. You can cha
 To run an experiment using a specific `my_experiments.yaml` config file, you should place its yaml config file in `/config/experiments`, and then run:
 
 `python run.py experiments=my_experiments`
+
+It is possible to provide a list as a model hyperparameter: in that case, the framework will automatically optimise between the given options.
  
 ## Framework usage
 

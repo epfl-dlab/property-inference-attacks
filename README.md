@@ -2,6 +2,8 @@
 
 In this repository, we propose a modular framework to run Property Inference Attacks on Machine Learning models.
 
+[![Continuous Integration](https://github.com/epfl-dlab/property-inference-framework/actions/workflows/python-app.yml/badge.svg)](https://github.com/epfl-dlab/property-inference-framework/actions/workflows/python-app.yml)
+
 ## Threat models and attacks
 
 ### White-Box 

@@ -1,0 +1,11 @@
+LogReg:
+    max_iter: 100
+
+MLP:
+    input_size: 4
+    hidden_size: 10
+    num_classes: 2
+    epochs: 20
+    learning_rate: 1e-1
+    weight_decay: 1e-2
+    batch_size: 32

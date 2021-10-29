@@ -1,37 +1,30 @@
 import pandas as pd
+import numpy as np
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+from omegaconf import DictConfig
+from itertools import product
 
 from src.generator import Generator
-from src.model import Model, LogReg, MLP
+from src.model import Model, LogReg
 from src import logger
-
-NUM_TREADS = 8
-DEFAULT_MODEL = LogReg
-DEFAULT_HYPERPARAMS = None
-
-"""DEFAULT_MODEL = MLP
-DEFAULT_HYPERPARAMS = {
-    "input_size": 4,
-    "hidden_size": 20,
-    "num_classes": 2,
-    "epochs": 20,
-    "learning_rate": 1e-3,
-    "batch_size": 32
-}"""
+from src.utils.deepsets import DeepSets
+from src.utils.model_utils import transform_parameters
 
 
 class Experiment:
-    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1000):
+    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1024):
         """Object representing an experiment, based on its data generator and model pair
 
         Args:
             generator: a Generator object, used to query data
-            model: a Model class that represents the kind of model to be used
+            model: a Model class that represents the feature_transformation of model to be used
             n_targets: the number of target pairs used for each experiment
             n_shadows: the number of shadow model pairs run for this experiment
-            hyperparams: dictionary containing every useful hyper-parameter for the Model
+            hyperparams: dictionary containing every useful hyper-parameter for the Model;
+                         if a list is provided for some hyperparameter(s), we optimise between all given options
+            n_queries: the number of queries used in the scope of grey- and black-box attacks
         """
 
         assert isinstance(generator, Generator), 'The given generator is not an instance of Generator, but {}'.format(type(generator).__name__)
@@ -50,8 +43,11 @@ class Experiment:
         self.n_shadows = n_shadows
 
         if hyperparams is not None:
-            assert isinstance(hyperparams, dict), 'The given hyperparameters are not a dictionary, but are {}'.format(type(hyperparams).__name__)
+            assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
+                'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
             self.hyperparams = hyperparams
+            if np.any([isinstance(p, list) for p in hyperparams.values()]):
+                self.__optimise_hyperparams()
         else:
             self.hyperparams = dict()
 
@@ -64,10 +60,56 @@ class Experiment:
         self.shadow_models = None
         self.shadow_labels = None
 
+        self.shadow_models = None
+        self.shadow_labels = None
+
+    def __optimise_hyperparams(self):
+        optims = list()
+        keys = list()
+
+        for k, v in self.hyperparams.items():
+            if isinstance(v, list):
+                optims.append(v)
+                keys.append(k)
+
+        logger.debug('Optimising hyperparameters: {}'.format(keys))
+
+        optims = list(product(*optims))
+
+        best_acc = 0.
+        best_hyper = None
+
+        for params in optims:
+            hyperparams = self.hyperparams.copy()
+            for i, p in enumerate(params):
+                hyperparams[keys[i]] = p
+            train = [self.generator.sample(b) for b in [False, True]]
+            test = [self.generator.sample(b) for b in [False, True]]
+
+            acc = 0.
+
+            for i in range(len(train)):
+                models = [self.model(self.label_col, hyperparams).fit(train[i]) for _ in range(10)]
+                acc += np.sum([accuracy_score(test[i][self.label_col], m.predict(train[i])) for m in models])
+
+            if acc > best_acc:
+                best_acc = acc
+                best_hyper = hyperparams
+
+        logger.debug('Best hyperparameters defined as: {}'.format(best_hyper))
+        self.hyperparams = best_hyper
+
+
+
     def prepare_attacks(self):
         self.labels = [False]*self.n_targets + [True]*self.n_targets
         self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
                         [self.generator.sample(b) for b in self.labels]]
+
+        scores = [accuracy_score(data[self.label_col], self.targets[i].predict(data)) for i, data in
+                  enumerate([self.generator.sample(b) for b in self.labels])]
+        logger.debug('Target models accuracy - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
+            np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_shadows(self, model, hyperparams):
         assert issubclass(model, Model), 'The given model is not a subclass of Model'
@@ -76,19 +118,72 @@ class Experiment:
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
                               [self.generator.sample(b) for b in self.shadow_labels]]
 
-    def run_whitebox(self):
+        scores = [accuracy_score(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
+                      enumerate([self.generator.sample(b) for b in self.shadow_labels])]
+        logger.debug('Shadow models accuracy ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
+            model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
+
+    def run_loss_test(self):
+        y_true = [False, True]
+        X_test = [self.generator.sample(b) for b in y_true]
+
+        accuracy = [[accuracy_score(X[self.label_col], t.predict(X)) for X in X_test] for t in self.targets]
+        return accuracy_score(self.labels, [np.argmax(acc) for acc in accuracy])
+
+    def run_threshold_test(self):
         assert self.targets is not None
         assert self.shadow_models is not None
 
-        meta_classifier = LogisticRegression(max_iter=250) # Should be DeepSets model
+        y_true = [False, True]
+        X_test = [self.generator.sample(b) for b in y_true]
 
-        train = pd.DataFrame(data=[s.parameters().flatten() for s in self.shadow_models])
-        test = pd.DataFrame(data=[t.parameters().flatten() for t in self.targets])
+        accuracy = np.array([[accuracy_score(X[self.label_col], s.predict(X)) for X in X_test] for s in self.shadow_models])
+        k = np.argmax(np.sum(accuracy, axis=0))
+
+        thr = 0.0
+        best_acc = 0.0
+        for z in np.arange(0, 1, 1e-2):
+            thr_labels = [k if acc > z else not k for acc in accuracy[:, k]]
+            acc = accuracy_score(self.shadow_labels, thr_labels)
+            if acc > best_acc:
+                thr = z
+                best_acc = acc
+
+        accuracy = np.array([accuracy_score(X_test[k][self.label_col], t.predict(X_test[k])) for t in self.targets])
+        y_pred = [k if acc > thr else not k for acc in accuracy]
+        return accuracy_score(self.labels, y_pred)
+
+    def run_whitebox_deepsets(self, hyperparams):
+        assert self.targets is not None
+        assert self.shadow_models is not None
+
+        meta_classifier = DeepSets(self.shadow_models[0].parameters(), latent_dim=hyperparams['latent_dim'],
+                                   epochs=hyperparams['epochs'], lr=hyperparams['learning_rate'], wd=hyperparams['weight_decay'])
+
+        train = [s.parameters() for s in self.shadow_models]
+        test = [t.parameters() for t in self.targets]
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)
 
-        return (accuracy_score(self.labels, y_pred) - 0.5) * 2  # Privacy Loss
+        return accuracy_score(self.labels, y_pred)
+
+    def run_whitebox_sort(self, sort=True):
+        assert self.targets is not None
+        assert self.shadow_models is not None
+
+        meta_classifier = LogisticRegression(max_iter=1024)
+
+        train = pd.DataFrame(data=[transform_parameters(s.parameters(), sort=sort)
+                                    for s in self.shadow_models])
+
+        test = pd.DataFrame(data=[transform_parameters(t.parameters(), sort=sort)
+                                  for t in self.targets])
+
+        meta_classifier.fit(train, self.shadow_labels)
+        y_pred = meta_classifier.predict(test)
+
+        return accuracy_score(self.labels, y_pred)
 
     def run_blackbox(self):
         assert self.targets is not None
@@ -98,34 +193,10 @@ class Experiment:
 
         queries = pd.concat([self.generator.sample(True), self.generator.sample(False)]).sample(self.n_queries)
 
-        train = pd.DataFrame(data=[s.predict_proba(queries).flatten() for s in self.shadow_models])
-        test  = pd.DataFrame(data=[s.predict_proba(queries).flatten() for s in self.targets])
+        train = pd.DataFrame(data=[s.predict(queries).flatten() for s in self.shadow_models])
+        test  = pd.DataFrame(data=[s.predict(queries).flatten() for s in self.targets])
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)
 
-        return (accuracy_score(self.labels, y_pred) - 0.5) * 2  # Privacy Loss
-
-    def prepare_and_run_all(self):
-        logger.info('Training target models...')
-        self.prepare_attacks()
-
-        logger.info('Training shadow models of same class as target models...')
-        self.run_shadows(self.model, self.hyperparams)
-
-        results = list()
-        logger.info('Running white-box attack...')
-        results.append(self.run_whitebox())  # White-Box attack
-
-        logger.info('Running grey-box attack...')
-        results.append(self.run_blackbox())  # Grey-Box attack
-
-        logger.info('Training shadow models of default class...')
-        self.run_shadows(DEFAULT_MODEL, DEFAULT_HYPERPARAMS)
-
-        logger.info('Running black-box attack...')
-        results.append(self.run_blackbox())  # Black-Box attack
-
-        return {'whitebox': results[0],
-                'greybox': results[1],
-                'blackbox': results[2]}
+        return accuracy_score(self.labels, y_pred)

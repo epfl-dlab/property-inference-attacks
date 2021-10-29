@@ -4,6 +4,7 @@ import torch.nn as nn
 import pandas as pd
 
 from sklearn.linear_model import LogisticRegression
+from torch.nn.functional import softmax
 
 
 class Model:
@@ -29,59 +30,55 @@ class Model:
             self.train_mean = X.mean()
             self.train_std = X.std()
 
-        X = (X - self.train_mean) / self.train_std
+        # X = (X - self.train_mean) / self.train_std
 
         X = torch.tensor(X.values.astype(np.float32), device=self.device)
         y = torch.tensor(y.values.astype(np.int64), device=self.device)
         data = torch.utils.data.TensorDataset(X, y)
-        loader = torch.utils.data.DataLoader(dataset=data, batch_size=bs, shuffle=True)
+        loader = torch.utils.data.DataLoader(dataset=data, batch_size=bs, shuffle=train)
 
         return loader
 
     def fit(self, data):
         """Fits the model according to the given data
-
         Args:
             data: DataFrame containing all useful data
-
         Returns: Model, the model itself
         """
         raise NotImplementedError
 
     def predict(self, data):
         """Makes predictions on the given data
-
         Args:
             data: DataFrame containing all useful data
-
         Returns: np.array containing predictions
         """
         return self.predict_proba(data).argmax(axis=1)
 
     def predict_proba(self, data):
         """Outputs prediction probability scores for the given data
-
         Args:
             data: DataFrame containing all useful data
-
         Returns:np.array containing probability scores
         """
         raise NotImplementedError
 
     def parameters(self):
-        """Returns the model's parameters in a list format
-
-        Returns: list of parameters
+        """Returns the model's parameters
+        If the model has only one layer, or is not a DNN, as a numpy array
+        If the model has multiple layers without biases, as a list of numpy arrays representing each layer
+        If the model has multiple layers with weights and biases, arrays of the corresponding weights and biases are
+        grouped in a list, with weights going before biases
+        Returns: the model's parameters
         """
-        # In canonical form only
 
         return []
 
 
 class LogReg(Model):
-    def __init__(self, label_col, _):
+    def __init__(self, label_col, hyperparams):
         super(LogReg, self).__init__(label_col, None)
-        self.model = LogisticRegression()
+        self.model = LogisticRegression(max_iter=hyperparams['max_iter'])
 
     def fit(self, data):
         self.model.fit(data.drop(self.label_col, axis=1), data[self.label_col])
@@ -111,7 +108,7 @@ class MLP(Model):
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, num_classes),
-            nn.Softmax(dim=1)
+            nn.ReLU()
         ).to(self.device)
 
         self.epochs = hyperparams['epochs']
@@ -121,7 +118,7 @@ class MLP(Model):
     def fit(self, data):
         loader = self._prepare_data(data, bs=self.bs, train=True)
 
-        opt = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        opt = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-2)
         criterion = nn.CrossEntropyLoss()
 
         for _ in range(self.epochs):
@@ -140,9 +137,15 @@ class MLP(Model):
         preds = list()
 
         for X, _ in loader:
-            preds.append(self.model(X).cpu())
+            preds.append(softmax(self.model(X).cpu(), dim=1))
 
-        return torch.cat(preds, dim=1).view(-1, preds[0].shape[3]).detach().numpy()
+        return np.nan_to_num(torch.cat(preds, dim=0).detach().numpy())
 
     def parameters(self):
-        return np.array(self.model.get_params().values())
+        params = self.model.state_dict()
+        out = list()
+        for i in [0, 2, 4]:
+            w = np.nan_to_num(params['{}.weight'.format(i)].detach().numpy())
+            b = np.nan_to_num(params['{}.bias'.format(i)].view(-1, 1).detach().numpy())
+            out.append([w, b])
+        return out

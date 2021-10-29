@@ -1,0 +1,13 @@
+n_targets: 16
+n_shadows: 64
+n_queries: 1024
+models:
+  - LogReg
+  - MLP
+generators:
+  - GaussianGenerator
+  - IndependentPropertyGenerator
+runs:
+  - LossTest
+  - ThresholdTest
+blackbox_model: LogReg

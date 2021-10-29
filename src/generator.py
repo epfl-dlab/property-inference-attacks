@@ -4,8 +4,12 @@ from pandas import DataFrame
 
 
 class Generator:
-    """An abstraction class used to query for data
-    """
+    """An abstraction class used to query for data"""
+
+    def __init__(self, num_samples=1024):
+        assert isinstance(num_samples, int), 'num_samples should be an int, but {} was provided'.format(type(num_samples).__name__)
+        self.num_samples = num_samples
+
     def sample(self, b):
         """Returns a dataset sampled from the data; the boolean b describes whether or not the output dataset should have
         or not the property that is being attacked
@@ -23,14 +27,14 @@ class GaussianGenerator(Generator):
     def sample(self, b):
         mean = array([0]*5)
         if b:
-            mean[1] = mean[2] = 1
+            mean[4] = 1
 
         cov = eye(5)
 
         for i in range(1, 5):
-            cov[0, i] = cov[i, 0] = 0.1
+            cov[0, i] = cov[i, 0] = 0.5
 
-        data = DataFrame(data=multivariate_normal(mean, cov, size=1024), columns=['label', 'f1', 'f2', 'f3', 'f4'])
+        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples), columns=['label', 'f1', 'f2', 'f3', 'f4'])
         data['label'] = (data['label'] > 0).astype('int32')
 
         return data
@@ -39,13 +43,14 @@ class GaussianGenerator(Generator):
 class IndependentPropertyGenerator(Generator):
     def sample(self, b):
         mean = array([0] * 5)
-        cov = eye(5)
-        for i in range(1, 5):
-            cov[0, i] = cov[i, 0] = 0.1
+        if b:
+            mean[4] = 1
 
-        data = DataFrame(data=multivariate_normal(mean, cov, size=1024), columns=['label', 'f1', 'f2', 'f3', 'f4'])
-        data['label'] = (data['label'] > 0).astype('int64')
-        data['f4'] = b
-        data['f4'] = data['f4'].astype('int64')
+        cov = eye(5)
+        for i in range(1, 4):
+            cov[0, i] = cov[i, 0] = 0.5
+
+        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples), columns=['label', 'f1', 'f2', 'f3', 'f4'])
+        data['label'] = (data['label'] > 0).astype('int32')
 
         return data

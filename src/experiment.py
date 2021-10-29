@@ -4,12 +4,14 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from omegaconf import DictConfig
+from itertools import product
 
 from src.generator import Generator
 from src.model import Model, LogReg
 from src import logger
 from src.utils.deepsets import DeepSets
 from src.utils.model_utils import transform_parameters
+
 
 class Experiment:
     def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1024):
@@ -20,7 +22,9 @@ class Experiment:
             model: a Model class that represents the feature_transformation of model to be used
             n_targets: the number of target pairs used for each experiment
             n_shadows: the number of shadow model pairs run for this experiment
-            hyperparams: dictionary containing every useful hyper-parameter for the Model
+            hyperparams: dictionary containing every useful hyper-parameter for the Model;
+                         if a list is provided for some hyperparameter(s), we optimise between all given options
+            n_queries: the number of queries used in the scope of grey- and black-box attacks
         """
 
         assert isinstance(generator, Generator), 'The given generator is not an instance of Generator, but {}'.format(type(generator).__name__)
@@ -42,6 +46,8 @@ class Experiment:
             assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
                 'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
             self.hyperparams = hyperparams
+            if np.any([isinstance(p, list) for p in hyperparams.values()]):
+                self.__optimise_hyperparams()
         else:
             self.hyperparams = dict()
 
@@ -56,6 +62,44 @@ class Experiment:
 
         self.shadow_models = None
         self.shadow_labels = None
+
+    def __optimise_hyperparams(self):
+        optims = list()
+        keys = list()
+
+        for k, v in self.hyperparams.items():
+            if isinstance(v, list):
+                optims.append(v)
+                keys.append(k)
+
+        logger.debug('Optimising hyperparameters: {}'.format(keys))
+
+        optims = list(product(*optims))
+
+        best_acc = 0.
+        best_hyper = None
+
+        for params in optims:
+            hyperparams = self.hyperparams.copy()
+            for i, p in enumerate(params):
+                hyperparams[keys[i]] = p
+            train = [self.generator.sample(b) for b in [False, True]]
+            test = [self.generator.sample(b) for b in [False, True]]
+
+            acc = 0.
+
+            for i in range(len(train)):
+                models = [self.model(self.label_col, hyperparams).fit(train[i]) for _ in range(10)]
+                acc += np.sum([accuracy_score(test[i][self.label_col], m.predict(train[i])) for m in models])
+
+            if acc > best_acc:
+                best_acc = acc
+                best_hyper = hyperparams
+
+        logger.debug('Best hyperparameters defined as: {}'.format(best_hyper))
+        self.hyperparams = best_hyper
+
+
 
     def prepare_attacks(self):
         self.labels = [False]*self.n_targets + [True]*self.n_targets

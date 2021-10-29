@@ -6,7 +6,7 @@ from pandas import DataFrame
 class Generator:
     """An abstraction class used to query for data"""
 
-    def __init__(self, num_samples):
+    def __init__(self, num_samples=1024):
         assert isinstance(num_samples, int), 'num_samples should be an int, but {} was provided'.format(type(num_samples).__name__)
         self.num_samples = num_samples
 

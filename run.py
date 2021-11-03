@@ -1,14 +1,14 @@
 import json
+import logging.config
 
-from os import path, mkdir
+from os import path
 
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 import hydra
 
-from src import TIMESTAMP, logger
-from src.experiment import Experiment
-from src.generator import GaussianGenerator, IndependentPropertyGenerator
-from src.model import LogReg, MLP
+from pia import Experiment
+from pia import GaussianGenerator, IndependentPropertyGenerator
+from pia import LogReg, MLP
 
 CWD = path.dirname(__file__)
 
@@ -21,6 +21,24 @@ GENERATORS = {
     'GaussianGenerator': GaussianGenerator,
     'IndependentPropertyGenerator': IndependentPropertyGenerator
 }
+
+from os import path, mkdir
+from time import strftime
+
+TIMESTAMP = strftime('%d%m%y_%H:%M:%S')
+
+config = path.abspath(path.join(path.dirname(__file__), 'logging.ini'))
+
+logdir = path.abspath(path.join(path.dirname(__file__),"../logs"))
+if not path.isdir(logdir):
+    mkdir(logdir)
+logfile = logdir + '/logs_property-inference-framework_' + TIMESTAMP
+
+
+logging.config.fileConfig(config, defaults={'logfilename': logfile})
+
+# create logger
+logger = logging.getLogger('pia')
 
 
 @hydra.main(config_path="config", config_name="config")

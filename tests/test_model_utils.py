@@ -1,11 +1,7 @@
 from unittest import TestCase
 
-from numpy import concatenate
-
-from tests import logger
-
-from src.model import MLP
-from src.utils.model_utils import sort_parameters, flatten_parameters
+from pia import MLP
+from pia.model_utils import sort_parameters, flatten_parameters
 
 DEFAULT_HYPERPARAMS = {
     "input_size": 4,

@@ -1,6 +1,5 @@
 import logging
-
-from src import logger
+logger = logging.getLogger('pia')
 
 for handler in logger.handlers:
     if handler.name == 'consoleHandler':

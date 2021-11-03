@@ -6,11 +6,13 @@ from sklearn.metrics import accuracy_score
 from omegaconf import DictConfig
 from itertools import product
 
-from src.generator import Generator
-from src.model import Model, LogReg
-from src import logger
-from src.utils.deepsets import DeepSets
-from src.utils.model_utils import transform_parameters
+from pia.generator import Generator
+from pia.model import Model
+from pia.deepsets import DeepSets
+from pia.model_utils import transform_parameters
+
+import logging
+logger = logging.getLogger('pia')
 
 
 class Experiment:

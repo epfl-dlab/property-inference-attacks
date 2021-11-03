@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from src.model import LogReg, MLP
-from src.generator import GaussianGenerator
+from pia import LogReg, MLP
+from pia import GaussianGenerator
 
 from sklearn.metrics import accuracy_score
 

@@ -5,7 +5,8 @@ import torch.nn as nn
 import numpy as np
 from torch.nn import Parameter
 
-from src import logger
+import logging
+logger = logging.getLogger('pia')
 
 
 class DeepSets(nn.Module):
@@ -71,9 +72,9 @@ class DeepSets(nn.Module):
             n = self.reducer[i](layer)
 
             if context is None:
-                context = n.flatten()
+                context = n.flatten().detach()
             else:
-                context = torch.cat((context, n.flatten()))
+                context = torch.cat((context, n.flatten())).detach()
 
             l.append(n.sum(axis=0))
 

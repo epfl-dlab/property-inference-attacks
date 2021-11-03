@@ -1,8 +1,25 @@
-# property-inference-framework
+# Property Inference Attacks
 
 In this repository, we propose a modular framework to run Property Inference Attacks on Machine Learning models.
 
 [![Continuous Integration](https://github.com/epfl-dlab/property-inference-framework/actions/workflows/python-app.yml/badge.svg)](https://github.com/epfl-dlab/property-inference-framework/actions/workflows/python-app.yml)
+
+## Installation
+
+You can get this package directly from pip or conda:
+
+`python -m pip install pia`
+
+Please note that PyTorch is required to run this framework. Please find installation instructions corresponding to you [here](https://pytorch.org/).
+
+## Usage
+
+This framework is made modular for any of your experiments: you simply should define subclasses of `Generator` and `Model`
+to represent your data source and your evaluated model respectively.
+
+From these, you can create a specific experiment configuration file. We suggest using [hydra](https://hydra.cc/docs/intro/) for your configurations, but parameters can also be passed in a standard `dict`.
+
+Alternatively, you can extend the Experiment class.
 
 ## Threat models and attacks
 
@@ -24,16 +41,6 @@ For the Grey-Box case, [2] describes two simple attacks:
  
 [3] also proposes a meta-classifier-based attack, that we use for both the Grey-Box and Black-Box cases: these are respectively represented by the `GreyBox` and `BlackBox` keywords. For the latter case, we simply default on a pre-defined model architecture.
 
- 
-## Environment
-
-The environment with required dependencies is provided for Anaconda in `env.yml`
-To install it, simply use:
-
-`conda env create -f env.yml`
-
-Additionally, PyTorch is required to run this framework. Please find all useful installation information [here](https://pytorch.org/).
-
 ## Unit tests
 
 The framework is provided with a few, simple unit tests. Run them with:
@@ -51,13 +58,6 @@ To run an experiment using a specific `my_experiments.yaml` config file, you sho
 `python run.py experiments=my_experiments`
 
 It is possible to provide a list as a model hyperparameter: in that case, the framework will automatically optimise between the given options.
- 
-## Framework usage
-
-This framework is made modular for any of your experiments: you simply should define subclasses of `Generator` and `Model`
-to represent your data source and your evaluated model respectively.
-
-From these, you can create a specific experiment configuration file, or extend the Experiment class.
 
 ## References
 

@@ -6,9 +6,9 @@ from os import path
 from omegaconf import DictConfig
 import hydra
 
-from pia import Experiment
-from pia import GaussianGenerator, IndependentPropertyGenerator
-from pia import LogReg, MLP
+from propinfer import Experiment
+from propinfer import GaussianGenerator, IndependentPropertyGenerator
+from propinfer import LogReg, MLP
 
 CWD = path.dirname(__file__)
 
@@ -38,7 +38,7 @@ logfile = logdir + '/logs_property-inference-framework_' + TIMESTAMP
 logging.config.fileConfig(config, defaults={'logfilename': logfile})
 
 # create logger
-logger = logging.getLogger('pia')
+logger = logging.getLogger('propinfer')
 
 
 @hydra.main(config_path="config", config_name="config")

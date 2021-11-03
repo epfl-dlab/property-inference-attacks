@@ -8,7 +8,7 @@ In this repository, we propose a modular framework to run Property Inference Att
 
 You can get this package directly from pip or conda:
 
-`python -m pip install pia`
+`python -m pip install propinfer`
 
 Please note that PyTorch is required to run this framework. Please find installation instructions corresponding to you [here](https://pytorch.org/).
 

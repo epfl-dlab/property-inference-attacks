@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from pia import MLP
-from pia.model_utils import sort_parameters, flatten_parameters
+from propinfer import MLP
+from propinfer.model_utils import sort_parameters, flatten_parameters
 
 DEFAULT_HYPERPARAMS = {
     "input_size": 4,

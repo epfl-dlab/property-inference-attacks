@@ -1,5 +1,5 @@
 import logging
-logger = logging.getLogger('pia')
+logger = logging.getLogger('propinfer')
 
 for handler in logger.handlers:
     if handler.name == 'consoleHandler':

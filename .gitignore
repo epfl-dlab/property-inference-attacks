@@ -3,7 +3,7 @@ results
 logs
 outputs
 dist
-pia.egg-info
+propinfer.egg-info
 
 *.pyc
 .DS_Store

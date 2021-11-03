@@ -6,7 +6,7 @@ import numpy as np
 from torch.nn import Parameter
 
 import logging
-logger = logging.getLogger('pia')
+logger = logging.getLogger('propinfer')
 
 
 class DeepSets(nn.Module):

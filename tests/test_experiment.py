@@ -1,8 +1,8 @@
 from unittest import TestCase
 
-from pia import Experiment
-from pia import GaussianGenerator, IndependentPropertyGenerator
-from pia import LogReg, MLP
+from propinfer import Experiment
+from propinfer import GaussianGenerator, IndependentPropertyGenerator
+from propinfer import LogReg, MLP
 
 
 DEFAULT_HYPERPARAMS_MLP = {

@@ -6,13 +6,13 @@ from sklearn.metrics import accuracy_score
 from omegaconf import DictConfig
 from itertools import product
 
-from pia.generator import Generator
-from pia.model import Model
-from pia.deepsets import DeepSets
-from pia.model_utils import transform_parameters
+from propinfer.generator import Generator
+from propinfer.model import Model
+from propinfer.deepsets import DeepSets
+from propinfer.model_utils import transform_parameters
 
 import logging
-logger = logging.getLogger('pia')
+logger = logging.getLogger('propinfer')
 
 
 class Experiment:

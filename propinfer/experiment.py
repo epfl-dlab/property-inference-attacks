@@ -92,13 +92,16 @@ class Experiment:
 
             for i in range(len(train)):
                 models = [self.model(self.label_col, hyperparams).fit(train[i]) for _ in range(10)]
-                acc += np.sum([accuracy_score(test[i][self.label_col], m.predict(train[i])) for m in models])
+                acc += np.mean([accuracy_score(test[i][self.label_col], m.predict(train[i])) for m in models])
+
+            acc /= len(train)
 
             if acc > best_acc:
                 best_acc = acc
                 best_hyper = hyperparams
 
         logger.debug('Best hyperparameters defined as: {}'.format(best_hyper))
+        logger.debug('Best accuracy: {:.2%}'.format(best_acc))
         self.hyperparams = best_hyper
 
     def run_targets(self):

@@ -28,7 +28,7 @@ class Model:
         self.train_std = None
 
     def _prepare_data(self, df, train=True):
-        """Prepares data by separating features from labels, getting dummies and eventually normalising features
+        """Prepares data by separating features from labels and eventually normalising features
 
         Args:
             df (DataFrame): the data to be prepared
@@ -43,8 +43,6 @@ class Model:
 
         X = df[feature_cols].copy()
         y = df[self.label_col].copy()
-
-        X = pd.get_dummies(X)
 
         if self.normalise:
             if train or self.train_mean is None:

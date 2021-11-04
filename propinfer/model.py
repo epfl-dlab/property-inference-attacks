@@ -5,19 +5,39 @@ import pandas as pd
 
 from sklearn.linear_model import LogisticRegression
 from torch.nn.functional import softmax
+from omegaconf import DictConfig
 
 
 class Model:
-    def __init__(self, label_col, _):
+    def __init__(self, label_col, normalise):
+        """An abstract class to be extended to represent the models that will be attacked
+
+        Args:
+            label_col: the index of the column to be used as Label
+            normalise (bool): whether to normalise data before fit/predict
+        """
         assert isinstance(label_col, str), 'label_col should be a string'
         self.label_col = label_col
+
+        assert isinstance(normalise, bool), 'normalise should be bool'
+        self.normalise = normalise
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.train_mean = None
         self.train_std = None
 
-    def _prepare_data(self, df, bs=32, train=True):
+    def _prepare_data(self, df, train=True):
+        """Prepares data by separating features from labels, getting dummies and eventually normalising features
+
+        Args:
+            df (DataFrame): the data to be prepared
+            train (bool): whether we are preparing a train or test set
+
+        Returns:
+            X (DataFrame): feature data
+            y (Series): label data
+        """
         feature_cols = df.columns.to_list()
         feature_cols.remove(self.label_col)
 
@@ -26,11 +46,26 @@ class Model:
 
         X = pd.get_dummies(X)
 
-        if train or self.train_mean is None:
-            self.train_mean = X.mean()
-            self.train_std = X.std()
+        if self.normalise:
+            if train or self.train_mean is None:
+                self.train_mean = X.mean()
+                self.train_std = X.std()
 
-        # X = (X - self.train_mean) / self.train_std
+            X = (X - self.train_mean) / self.train_std
+
+        return X, y
+
+    def _prepare_dataloader(self, df, bs=32, train=True):
+        """Prepares data, and puts it inside a ready-to-use PyTorch DataLoader
+
+        Args:
+            df (DataFrame): the data to be prepared
+            bs (int): batch-size
+            train (bool): whether we are preparing a train or test set
+
+        Returns: a PyTorch DataLoader
+        """
+        X, y = self._prepare_data(df, train)
 
         X = torch.tensor(X.values.astype(np.float32), device=self.device)
         y = torch.tensor(y.values.astype(np.int64), device=self.device)
@@ -77,15 +112,39 @@ class Model:
 
 class LogReg(Model):
     def __init__(self, label_col, hyperparams):
-        super(LogReg, self).__init__(label_col, None)
-        self.model = LogisticRegression(max_iter=hyperparams['max_iter'])
+        """A logistic regression based model
+
+        Args:
+            label_col: the index of the column to be used as Label
+            hyperparams (dict of DictConfig): hyperperameters for the Model
+                Accepted keywords: max_iter (default = 100), normalise (default=False)
+        """
+        if hyperparams is not None:
+            assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
+                'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
+        else:
+            self.hyperparams = dict()
+
+        max_iter = hyperparams['max_iter'] if 'max_iter' in hyperparams.keys() else 100
+
+        if 'normalise' in hyperparams.keys():
+            normalise = hyperparams['normalise']
+        elif 'normalize' in hyperparams.keys():
+            normalise = hyperparams['normalize']
+        else:
+            normalise = False
+
+        super(LogReg, self).__init__(label_col, normalise)
+        self.model = LogisticRegression(max_iter=max_iter)
 
     def fit(self, data):
-        self.model.fit(data.drop(self.label_col, axis=1), data[self.label_col])
+        X, y = self._prepare_data(data, train=True)
+        self.model.fit(X, y)
         return self
 
     def predict_proba(self, data):
-        return self.model.predict_proba(data.drop(self.label_col, axis=1))
+        X, _ = self._prepare_data(data, train=True)
+        return self.model.predict_proba(X)
 
     def parameters(self):
         return np.concatenate([self.model.intercept_, self.model.coef_.flatten()])
@@ -93,14 +152,29 @@ class LogReg(Model):
 
 class MLP(Model):
     def __init__(self, label_col, hyperparams):
-        super(MLP, self).__init__(label_col, hyperparams)
+        """A Multi-Layer Perceptron based model
+
+        Args:
+            label_col: the index of the column to be used as Label
+            hyperparams (dict of DictConfig): hyperperameters for the Model
+                Accepted keywords: input_size (mandatory), num_classes (mandatory), hidden_size (default=10),
+                epochs (default=20), learning_rate (default=1e-1), weight_decay (default=1e-2),
+                batch_size (default=32), normalise (default=False)
+        """
+        assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict), \
+            'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
+
+        if 'normalise' in hyperparams.keys():
+            normalise = hyperparams['normalise']
+        elif 'normalize' in hyperparams.keys():
+            normalise = hyperparams['normalize']
+        else:
+            normalise = False
+        super(MLP, self).__init__(label_col, normalise)
 
         input_size = hyperparams['input_size']
-        if 'hidden_size' in hyperparams.keys():
-            hidden_size = hyperparams['hidden_size']
-        else:
-            hidden_size = 20
         num_classes = hyperparams['num_classes']
+        hidden_size = hyperparams['hidden_size'] if 'hidden_size' in hyperparams.keys() else 10
 
         self.model = nn.Sequential(
             nn.Linear(input_size, hidden_size),
@@ -111,12 +185,12 @@ class MLP(Model):
             nn.ReLU()
         ).to(self.device)
 
-        self.epochs = hyperparams['epochs']
-        self.lr = hyperparams['learning_rate']
-        self.bs = hyperparams['batch_size']
+        self.epochs = hyperparams['epochs'] if 'epochs' in hyperparams.keys() else 10
+        self.lr = hyperparams['learning_rate'] if 'learning_rate' in hyperparams.keys() else 1e-1
+        self.bs = hyperparams['batch_size'] if 'batch_size' in hyperparams.keys() else 32
 
     def fit(self, data):
-        loader = self._prepare_data(data, bs=self.bs, train=True)
+        loader = self._prepare_dataloader(data, bs=self.bs, train=True)
 
         opt = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-2)
         criterion = nn.CrossEntropyLoss()
@@ -132,7 +206,7 @@ class MLP(Model):
         return self
 
     def predict_proba(self, data):
-        loader = self._prepare_data(data, bs=self.bs, train=False)
+        loader = self._prepare_dataloader(data, bs=self.bs, train=False)
 
         preds = list()
 

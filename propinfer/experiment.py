@@ -21,7 +21,7 @@ class Experiment:
 
         Args:
             generator: a Generator object, used to query data
-            model: a Model class that represents the feature_transformation of model to be used
+            model: a Model class that represents the model to be used
             n_targets: the number of target pairs used for each experiment
             n_shadows: the number of shadow model pairs run for this experiment
             hyperparams: dictionary containing every useful hyper-parameter for the Model;
@@ -101,9 +101,8 @@ class Experiment:
         logger.debug('Best hyperparameters defined as: {}'.format(best_hyper))
         self.hyperparams = best_hyper
 
-
-
-    def prepare_attacks(self):
+    def run_targets(self):
+        """Create and fit target models """
         self.labels = [False]*self.n_targets + [True]*self.n_targets
         self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
                         [self.generator.sample(b) for b in self.labels]]
@@ -114,7 +113,20 @@ class Experiment:
             np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_shadows(self, model, hyperparams):
+        """Create and fit shadow models
+
+        Args:
+            model: a Model class that represents the model to be used
+            hyperparams (dict or DictConfig): dictionary containing every useful hyper-parameter for the Model;
+                Hyperparameters of shadow models will NOT be optimised
+        """
         assert issubclass(model, Model), 'The given model is not a subclass of Model'
+
+        if hyperparams is not None:
+            assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
+                'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
+        else:
+            self.hyperparams = dict()
 
         self.shadow_labels = [False] * self.n_shadows + [True] * self.n_shadows
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
@@ -126,6 +138,12 @@ class Experiment:
             model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_loss_test(self):
+        """Runs a loss test attack on target models
+
+        Returns: Attack accuracy on target models
+        """
+        assert self.targets is not None
+
         y_true = [False, True]
         X_test = [self.generator.sample(b) for b in y_true]
 
@@ -133,6 +151,10 @@ class Experiment:
         return accuracy_score(self.labels, [np.argmax(acc) for acc in accuracy])
 
     def run_threshold_test(self):
+        """Runs a threshold test attack on target models
+
+        Returns: Attack accuracy on target models
+        """
         assert self.targets is not None
         assert self.shadow_models is not None
 
@@ -156,11 +178,30 @@ class Experiment:
         return accuracy_score(self.labels, y_pred)
 
     def run_whitebox_deepsets(self, hyperparams):
+        """Runs a whitebox attack on the target models using a DeepSets meta-classifier
+
+        Args:
+            hyperparams (dict or DictConfig): Hyperparameters for the DeepSets meta-classifier.
+                Accepted keywords are: latent_dim (default=5); epochs (default=20); learning_rate (default=1e-4); weight_decay (default=1e-4)
+
+        Returns: Attack accuracy on target models
+        """
         assert self.targets is not None
         assert self.shadow_models is not None
 
-        meta_classifier = DeepSets(self.shadow_models[0].parameters(), latent_dim=hyperparams['latent_dim'],
-                                   epochs=hyperparams['epochs'], lr=hyperparams['learning_rate'], wd=hyperparams['weight_decay'])
+        if hyperparams is not None:
+            assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
+                'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
+        else:
+            self.hyperparams = dict()
+
+        latent_dim = hyperparams['latent_dim'] if 'latent_dim' in hyperparams.keys() else 5
+        epochs = hyperparams['epochs'] if 'epochs' in hyperparams.keys() else 20
+        lr = hyperparams['learning_rate'] if 'learning_rate' in hyperparams.keys() else 1e-4
+        wd = hyperparams['weight_decay'] if 'weight_decay' in hyperparams.keys() else 1e-4
+
+        meta_classifier = DeepSets(self.shadow_models[0].parameters(), latent_dim=latent_dim,
+                                   epochs=epochs, lr=lr, wd=wd)
 
         train = [s.parameters() for s in self.shadow_models]
         test = [t.parameters() for t in self.targets]
@@ -171,6 +212,13 @@ class Experiment:
         return accuracy_score(self.labels, y_pred)
 
     def run_whitebox_sort(self, sort=True):
+        """Runs a whitebox attack on the target models, by using the model parameters as features for a meta-classifier
+
+        Args:
+            sort: whether to perform node sorting (to be used for permutation-invariant DNN)
+
+        Returns: Attack accuracy on target models
+        """
         assert self.targets is not None
         assert self.shadow_models is not None
 
@@ -188,6 +236,10 @@ class Experiment:
         return accuracy_score(self.labels, y_pred)
 
     def run_blackbox(self):
+        """Runs a blackbox attack on the target models, by using the result of random queries as features for a meta-classifier
+
+        Returns: Attack accuracy on target models
+        """
         assert self.targets is not None
         assert self.shadow_models is not None
 

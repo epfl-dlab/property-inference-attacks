@@ -26,7 +26,7 @@ class TestExperiment(TestCase):
         self.exp = Experiment(self.gen, 'label', self.model, self.num_targets, self.num_shadows, {'max_iter': 100})
 
     def test_prepare_attacks(self):
-        self.exp.prepare_attacks()
+        self.exp.run_targets()
         assert self.exp.targets is not None
         assert sum(self.exp.labels) == self.num_targets
         assert len(self.exp.labels) == 2*self.num_targets
@@ -38,7 +38,7 @@ class TestExperiment(TestCase):
         assert len(self.exp.shadow_labels) == 2 * self.num_shadows
 
     def test_attacks(self):
-        self.exp.prepare_attacks()
+        self.exp.run_targets()
         self.exp.run_shadows(LogReg, {'max_iter': 100})
 
         res = dict()
@@ -48,7 +48,7 @@ class TestExperiment(TestCase):
         indep = IndependentPropertyGenerator()
         exp_indep = Experiment(indep, 'label', self.model, self.num_targets, self.num_shadows, {'max_iter': 100})
 
-        exp_indep.prepare_attacks()
+        exp_indep.run_targets()
         exp_indep.run_shadows(LogReg, {'max_iter': 100})
 
         res_indep = dict()

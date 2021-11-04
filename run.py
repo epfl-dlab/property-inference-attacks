@@ -51,7 +51,7 @@ def main(cfg: DictConfig):
                                     cfg.models[model], cfg.experiments.n_queries)
 
             logger.info('Training target models: {} - {}'.format(gen, model))
-            experiment.prepare_attacks()
+            experiment.run_targets()
             logger.info('Training shadow models: {} - {}'.format(gen, model))
             experiment.run_shadows(MODELS[model], cfg.models[model])
 

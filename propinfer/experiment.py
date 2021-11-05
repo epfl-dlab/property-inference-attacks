@@ -233,9 +233,11 @@ class Experiment:
                                   for t in self.targets])
 
         input_size = train.shape[1]
-        hidden = [2**i for i in range(4, int(np.log2(input_size)))]
+        hidden = [2**i for i in range(3, int(np.log2(input_size)))]
+        hidden = hidden if len(hidden) >= 3 else [8, 16, 32]
 
-        meta_classifier = MLPClassifier(solver='lbfgs', hidden_layer_sizes=reversed(hidden), max_iter=4096)
+        meta_classifier = MLPClassifier(solver='adam', hidden_layer_sizes=reversed(hidden), max_iter=100,
+                                        learning_rate_init=1e-2, alpha=1e-2, early_stopping=True)
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)
@@ -250,7 +252,7 @@ class Experiment:
         assert self.targets is not None
         assert self.shadow_models is not None
 
-        meta_classifier = LogisticRegression(max_iter=250)
+        meta_classifier = LogisticRegression(max_iter=4096)
 
         queries = pd.concat([self.generator.sample(True), self.generator.sample(False)]).sample(self.n_queries)
 

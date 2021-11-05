@@ -33,19 +33,19 @@ class DeepSets(nn.Module):
                     context_size = layer.shape[0] * latent_dim
 
                 self.reducer.append(
-                    nn.Sequential(nn.Linear(dim, 2*dim), nn.ReLU(),
-                                  nn.Linear(2*dim, 2*latent_dim), nn.ReLU(),
-                                  nn.Linear(2*latent_dim, latent_dim),  nn.ReLU()).to(self.device))
+                    nn.Sequential(nn.Linear(dim, 2*dim), nn.Dropout(), nn.ReLU(),
+                                  nn.Linear(2*dim, 2*latent_dim), nn.Dropout(), nn.ReLU(),
+                                  nn.Linear(2*latent_dim, latent_dim)).to(self.device))
         else:
             raise AttributeError('The given param is not a list or ndarray, but is {}'.format(type(param).__name__))
 
 
         dim = len(param) * latent_dim
         self.classifier = nn.Sequential(
-            nn.Linear(dim, 2*dim), nn.ReLU(),
-            nn.Linear(2*dim, 2*latent_dim), nn.ReLU(),
-            nn.Linear(2*latent_dim, latent_dim), nn.ReLU(),
-            nn.Linear(latent_dim, 2), nn.ReLU()
+            nn.Linear(dim, 2*dim), nn.Dropout(), nn.ReLU(),
+            nn.Linear(2*dim, 2*latent_dim), nn.Dropout(), nn.ReLU(),
+            nn.Linear(2*latent_dim, latent_dim), nn.Dropout(), nn.ReLU(),
+            nn.Linear(latent_dim, 2)
         ).to(self.device)
 
         self.epochs = epochs
@@ -100,6 +100,10 @@ class DeepSets(nn.Module):
                 logger.debug('Training DeepSets - Epoch {} - Loss={:.4f}'.format(e, tot_loss))
 
     def predict(self, parameters):
+        for r in self.reducer:
+            r.train(False)
+        self.classifier.train(False)
+
         y_pred = list()
         for p in parameters:
             y_pred.append(self.forward(p).detach().argmax().item())

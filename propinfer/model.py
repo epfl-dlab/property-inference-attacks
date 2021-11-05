@@ -1,8 +1,11 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import warnings
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.exceptions import ConvergenceWarning
+
 from torch.nn.functional import softmax
 from omegaconf import DictConfig
 
@@ -136,7 +139,9 @@ class LogReg(Model):
 
     def fit(self, data):
         X, y = self._prepare_data(data, train=True)
-        self.model.fit(X, y)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=ConvergenceWarning)
+            self.model.fit(X, y)
         return self
 
     def predict_proba(self, data):

@@ -11,11 +11,10 @@ DEFAULT_HYPERPARAMS_LOGREG = {
 
 DEFAULT_HYPERPARAMS_MLP = {
     "input_size": 4,
-    "hidden_size": 10,
     "num_classes": 2,
-    "epochs": 20,
+    "epochs": 40,
     "learning_rate": 1e-2,
-    "weight_decay": 1e-3,
+    "weight_decay": 1e-2,
     "batch_size": 32
 }
 

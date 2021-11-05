@@ -10,7 +10,7 @@ logger = logging.getLogger('propinfer')
 
 
 class DeepSets(nn.Module):
-    def __init__(self, param, latent_dim=10, epochs=100, lr=5e-2, wd=1e-2):
+    def __init__(self, param, latent_dim, epochs, lr, wd):
         super().__init__()
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -24,13 +24,13 @@ class DeepSets(nn.Module):
 
                 if isinstance(layer, list):
                     dim = layer[0].shape[1] + 1 + context_size
-                    context_size += layer[0].shape[0]*latent_dim
+                    context_size = layer[0].shape[0]*latent_dim
                 else:
                     if len(layer.shape) < 2:
                         layer = layer.reshape((1, -1))
 
                     dim = layer.shape[1] + context_size
-                    context_size += layer.shape[0] * latent_dim
+                    context_size = layer.shape[0] * latent_dim
 
                 self.reducer.append(
                     nn.Sequential(nn.Linear(dim, 2*dim), nn.ReLU(),
@@ -45,7 +45,7 @@ class DeepSets(nn.Module):
             nn.Linear(dim, 2*dim), nn.ReLU(),
             nn.Linear(2*dim, 2*latent_dim), nn.ReLU(),
             nn.Linear(2*latent_dim, latent_dim), nn.ReLU(),
-            nn.Linear(latent_dim, 2), nn.Softmax(dim=0)
+            nn.Linear(latent_dim, 2), nn.ReLU()
         ).to(self.device)
 
         self.epochs = epochs
@@ -71,10 +71,7 @@ class DeepSets(nn.Module):
 
             n = self.reducer[i](layer)
 
-            if context is None:
-                context = n.flatten().detach()
-            else:
-                context = torch.cat((context, n.flatten())).detach()
+            context = n.flatten().detach()
 
             l.append(n.sum(axis=0))
 

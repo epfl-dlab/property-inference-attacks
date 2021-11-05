@@ -14,8 +14,8 @@ DEFAULT_HYPERPARAMS_MLP = {
     "hidden_size": 10,
     "num_classes": 2,
     "epochs": 20,
-    "learning_rate": 1e-1,
-    "weight_decay": 1e-2,
+    "learning_rate": 1e-2,
+    "weight_decay": 1e-3,
     "batch_size": 32
 }
 

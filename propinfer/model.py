@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import pandas as pd
 
 from sklearn.linear_model import LogisticRegression
 from torch.nn.functional import softmax
@@ -121,7 +120,7 @@ class LogReg(Model):
             assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
                 'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
         else:
-            self.hyperparams = dict()
+            hyperparams = dict()
 
         max_iter = hyperparams['max_iter'] if 'max_iter' in hyperparams.keys() else 100
 
@@ -155,7 +154,7 @@ class MLP(Model):
         Args:
             label_col: the index of the column to be used as Label
             hyperparams (dict of DictConfig): hyperperameters for the Model
-                Accepted keywords: input_size (mandatory), num_classes (mandatory), hidden_size (default=10),
+                Accepted keywords: input_size (mandatory), num_classes (mandatory),
                 epochs (default=20), learning_rate (default=1e-1), weight_decay (default=1e-2),
                 batch_size (default=32), normalise (default=False)
         """
@@ -172,25 +171,38 @@ class MLP(Model):
 
         input_size = hyperparams['input_size']
         num_classes = hyperparams['num_classes']
-        hidden_size = hyperparams['hidden_size'] if 'hidden_size' in hyperparams.keys() else 10
+
+        hidden_diff = (input_size-num_classes)//4
+
+        hidden_1 = input_size - hidden_diff
+        hidden_1 = hidden_1 if hidden_1 > 8 else 8
+
+        hidden_2 = input_size - hidden_diff*2
+        hidden_2 = hidden_2 if hidden_2 > 8 else 8
+
+        hidden_3 = input_size - hidden_diff*3
+        hidden_3 = hidden_3 if hidden_3 > 8 else 8
 
         self.model = nn.Sequential(
-            nn.Linear(input_size, hidden_size),
+            nn.Linear(input_size, hidden_1),
             nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
+            nn.Linear(hidden_1, hidden_2),
             nn.ReLU(),
-            nn.Linear(hidden_size, num_classes),
+            nn.Linear(hidden_2, hidden_3),
+            nn.ReLU(),
+            nn.Linear(hidden_3, num_classes),
             nn.ReLU()
         ).to(self.device)
 
         self.epochs = hyperparams['epochs'] if 'epochs' in hyperparams.keys() else 10
         self.lr = hyperparams['learning_rate'] if 'learning_rate' in hyperparams.keys() else 1e-1
+        self.wd = hyperparams['weight_decay'] if 'weight_decay' in hyperparams.keys() else 1e-2
         self.bs = hyperparams['batch_size'] if 'batch_size' in hyperparams.keys() else 32
 
     def fit(self, data):
         loader = self._prepare_dataloader(data, bs=self.bs, train=True)
 
-        opt = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-2)
+        opt = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.wd)
         criterion = nn.CrossEntropyLoss()
 
         for _ in range(self.epochs):

@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import accuracy_score
 from omegaconf import DictConfig
 from itertools import product
@@ -196,7 +197,7 @@ class Experiment:
             assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
                 'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
         else:
-            self.hyperparams = dict()
+            hyperparams = dict()
 
         latent_dim = hyperparams['latent_dim'] if 'latent_dim' in hyperparams.keys() else 5
         epochs = hyperparams['epochs'] if 'epochs' in hyperparams.keys() else 20
@@ -225,13 +226,16 @@ class Experiment:
         assert self.targets is not None
         assert self.shadow_models is not None
 
-        meta_classifier = LogisticRegression(max_iter=1024)
-
         train = pd.DataFrame(data=[transform_parameters(s.parameters(), sort=sort)
                                     for s in self.shadow_models])
 
         test = pd.DataFrame(data=[transform_parameters(t.parameters(), sort=sort)
                                   for t in self.targets])
+
+        input_size = train.shape[1]
+        hidden = [2**i for i in range(4, int(np.log2(input_size)))]
+
+        meta_classifier = MLPClassifier(solver='lbfgs', hidden_layer_sizes=reversed(hidden), max_iter=4096)
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)

@@ -228,13 +228,13 @@ class MLP(Model):
         for X, _ in loader:
             preds.append(softmax(self.model(X).cpu(), dim=1))
 
-        return np.nan_to_num(torch.cat(preds, dim=0).detach().numpy())
+        return np.nan_to_num(torch.cat(preds, dim=0).detach().cpu().numpy())
 
     def parameters(self):
         params = self.model.state_dict()
         out = list()
         for i in [0, 2, 4]:
-            w = np.nan_to_num(params['{}.weight'.format(i)].detach().numpy())
-            b = np.nan_to_num(params['{}.bias'.format(i)].view(-1, 1).detach().numpy())
+            w = np.nan_to_num(params['{}.weight'.format(i)].detach().cpu().numpy())
+            b = np.nan_to_num(params['{}.bias'.format(i)].view(-1, 1).detach().cpu().numpy())
             out.append([w, b])
         return out

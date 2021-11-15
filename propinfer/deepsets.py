@@ -1,9 +1,6 @@
-from collections.abc import Iterator
-
 import torch
 import torch.nn as nn
 import numpy as np
-from torch.nn import Parameter
 
 import logging
 logger = logging.getLogger('propinfer')
@@ -78,7 +75,7 @@ class DeepSets(nn.Module):
         x = torch.cat(l)
         return self.classifier(x)
 
-    def parameters(self, recurse: bool = True) -> Iterator[Parameter]:
+    def parameters(self, recurse: bool = True):
         params = list(self.classifier.parameters())
         for r in self.reducer:
             params.extend(list(r.parameters()))

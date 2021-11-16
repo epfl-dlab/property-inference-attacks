@@ -12,9 +12,9 @@ DEFAULT_HYPERPARAMS_LOGREG = {
 DEFAULT_HYPERPARAMS_MLP = {
     "input_size": 4,
     "num_classes": 2,
-    "epochs": 40,
+    "epochs": 20,
     "learning_rate": 1e-2,
-    "weight_decay": 1e-2,
+    "weight_decay": 1e-3,
     "batch_size": 32
 }
 
@@ -36,4 +36,4 @@ class Test(TestCase):
         train = gen.sample(True)
         model.fit(train)
 
-        assert accuracy_score(train['label'], model.predict(train)) > 0.75
+        assert accuracy_score(train['label'], model.predict(train)) > 0.6

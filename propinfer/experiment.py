@@ -1,5 +1,3 @@
-from multiprocessing import Pool
-
 import pandas as pd
 import numpy as np
 
@@ -19,7 +17,7 @@ logger = logging.getLogger('propinfer')
 
 
 class Experiment:
-    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1024, threads=1):
+    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1024):
         """Object representing an experiment, based on its data generator and model pair
 
         Args:
@@ -46,9 +44,6 @@ class Experiment:
 
         assert isinstance(n_shadows, int), 'The given n_shadows is not an integer, but is {}'.format(type(n_shadows).__name__)
         self.n_shadows = n_shadows
-
-        assert isinstance(threads, int), 'The given n_shadows is not an integer, but is {}'.format(type(n_shadows).__name__)
-        self.threads = threads
 
         if hyperparams is not None:
             assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
@@ -113,10 +108,8 @@ class Experiment:
     def run_targets(self):
         """Create and fit target models """
         self.labels = [False]*self.n_targets + [True]*self.n_targets
-
-        with Pool(self.threads) as pool:
-            self.targets = pool.map(self.model(self.label_col, self.hyperparams).fit,
-                                    [self.generator.sample(b) for b in self.labels])
+        self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
+                        [self.generator.sample(b) for b in self.labels]]
 
         scores = [accuracy_score(data[self.label_col], self.targets[i].predict(data)) for i, data in
                   enumerate([self.generator.sample(b) for b in self.labels])]
@@ -140,9 +133,8 @@ class Experiment:
             self.hyperparams = dict()
 
         self.shadow_labels = [False] * self.n_shadows + [True] * self.n_shadows
-        with Pool(self.threads) as pool:
-            self.shadow_models = pool.map(model(self.label_col, hyperparams).fit,
-                                    [self.generator.sample(b) for b in self.shadow_labels])
+        self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
+                              [self.generator.sample(b) for b in self.shadow_labels]]
 
         scores = [accuracy_score(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
                       enumerate([self.generator.sample(b) for b in self.shadow_labels])]

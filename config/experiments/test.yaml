@@ -15,4 +15,3 @@ runs:
   - GreyBox
   - BlackBox
 blackbox_model: LogReg
-threads: 8

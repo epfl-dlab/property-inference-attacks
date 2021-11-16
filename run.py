@@ -48,7 +48,7 @@ def main(cfg: DictConfig):
         generator = GENERATORS[gen](num_samples=cfg.generators.num_samples)
         for model in cfg.experiments.models:
             experiment = Experiment(generator, cfg.generators.label_col, MODELS[model], cfg.experiments.n_targets, cfg.experiments.n_shadows,
-                                    cfg.models[model], cfg.experiments.n_queries, cfg.experiments.threads)
+                                    cfg.models[model], cfg.experiments.n_queries)
 
             logger.info('Training target models: {} - {}'.format(gen, model))
             experiment.run_targets()

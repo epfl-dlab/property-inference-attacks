@@ -7,7 +7,7 @@ logger = logging.getLogger('propinfer')
 
 
 class DeepSets(nn.Module):
-    def __init__(self, param, latent_dim, epochs, lr, wd):
+    def __init__(self, param, latent_dim, epochs, lr, wd, bs=32):
         super().__init__()
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -48,6 +48,7 @@ class DeepSets(nn.Module):
         self.epochs = epochs
         self.lr = lr
         self.wd = wd
+        self.bs=bs
 
     def forward(self, x):
         if isinstance(x, np.ndarray):
@@ -86,13 +87,15 @@ class DeepSets(nn.Module):
         criterion = torch.nn.CrossEntropyLoss()
         for e in range(self.epochs):
             tot_loss = 0
-            for i in np.random.permutation(len(parameters)):
-                opt.zero_grad()
-                y_pred = self.forward(parameters[i])
-                loss = criterion(y_pred.view(1, -1), torch.tensor(labels[i], dtype=torch.int64, device=self.device).view(1))
+            for i, idx in enumerate(np.random.permutation(len(parameters))):
+                if i % self.bs == 0:
+                    opt.zero_grad()
+                y_pred = self.forward(parameters[idx])
+                loss = criterion(y_pred.view(1, -1), torch.tensor(labels[idx], dtype=torch.int64, device=self.device).view(1))
                 tot_loss += loss.item()
                 loss.backward()
-                opt.step()
+                if i % self.bs == 0 or i == len(parameters)-1:
+                    opt.step()
             if e % 10 == 0 or e == self.epochs-1:
                 logger.debug('Training DeepSets - Epoch {} - Loss={:.4f}'.format(e, tot_loss))
 

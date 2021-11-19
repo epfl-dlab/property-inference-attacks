@@ -50,6 +50,8 @@ class Model:
             if train or self.train_mean is None:
                 self.train_mean = X.mean()
                 self.train_std = X.std()
+                if self.train_std < 1e-5:
+                    self.train_std = 1.
 
             X = (X - self.train_mean) / self.train_std
 

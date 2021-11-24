@@ -165,20 +165,23 @@ class Experiment:
         y_true = [False, True]
         X_test = [self.generator.sample(b) for b in y_true]
 
+        shadow_labels = np.array(self.shadow_labels, dtype=bool)
         accuracy = np.array([[accuracy_score(X[self.label_col], s.predict(X)) for X in X_test] for s in self.shadow_models])
-        k = np.argmax(np.sum(accuracy, axis=0))
+        k = np.argmax(np.abs(np.sum(accuracy[shadow_labels, :], axis=0) -
+                             np.sum(accuracy[~shadow_labels, :], axis=0)))
+        higher_acc = np.argmax([np.sum(accuracy[~shadow_labels, k]), np.sum(accuracy[shadow_labels, k])])
 
         thr = 0.0
         best_acc = 0.0
         for z in np.arange(0, 1, 1e-2):
-            thr_labels = [k if acc > z else not k for acc in accuracy[:, k]]
-            acc = accuracy_score(self.shadow_labels, thr_labels)
+            thr_labels = [higher_acc if acc > z else not higher_acc for acc in accuracy[:, k]]
+            acc = accuracy_score(shadow_labels, thr_labels)
             if acc > best_acc:
                 thr = z
                 best_acc = acc
 
         accuracy = np.array([accuracy_score(X_test[k][self.label_col], t.predict(X_test[k])) for t in self.targets])
-        y_pred = [k if acc > thr else not k for acc in accuracy]
+        y_pred = [higher_acc if acc > thr else not higher_acc for acc in accuracy]
         return accuracy_score(self.labels, y_pred)
 
     def run_whitebox_deepsets(self, hyperparams):

@@ -18,8 +18,8 @@ DEFAULT_HYPERPARAMS_MLP = {
 
 class TestExperiment(TestCase):
     def setUp(self):
-        self.num_targets = 50
-        self.num_shadows = 100
+        self.num_targets = 64
+        self.num_shadows = 256
 
         self.gen = GaussianGenerator()
         self.model = LogReg

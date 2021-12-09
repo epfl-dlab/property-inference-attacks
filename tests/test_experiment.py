@@ -15,6 +15,13 @@ DEFAULT_HYPERPARAMS_MLP = {
     "batch_size": 32
 }
 
+DEFAULT_HYPERPARAMS_DEEPSETS = {
+    'latent_dim': 8,
+    'epochs': 1,
+    'learning_rate': 1e-3,
+    'weight_decay': 1e-4
+}
+
 
 class TestExperiment(TestCase):
     def setUp(self):
@@ -40,6 +47,10 @@ class TestExperiment(TestCase):
     def test_attacks(self):
         self.exp.run_targets()
         self.exp.run_shadows(LogReg, {'max_iter': 100})
+
+        assert self.exp.run_loss_test() > 0.25
+        assert self.exp.run_threshold_test() > 0.25
+        assert self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS) > 0.
 
         res = dict()
         res['whitebox'] = self.exp.run_whitebox_sort()
@@ -67,3 +78,13 @@ class TestExperiment(TestCase):
 
         assert not isinstance(self.exp.hyperparams['learning_rate'], list)
         assert not isinstance(self.exp.hyperparams['weight_decay'], list)
+
+    def test_attacks_multiple(self):
+        self.exp.run_targets()
+        self.exp.run_shadows(LogReg, {'max_iter': 100})
+
+        assert len(self.exp.run_threshold_test(n_outputs=2)) == 2
+        assert len(self.exp.run_whitebox_sort(n_outputs=2)) == 2
+        assert len(self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS, n_outputs=2)) == 2
+        assert len(self.exp.run_whitebox_sort(n_outputs=2)) == 2
+        assert len(self.exp.run_blackbox(n_outputs=2)) == 2

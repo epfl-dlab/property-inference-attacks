@@ -7,7 +7,7 @@ logger = logging.getLogger('propinfer')
 
 
 class DeepSets(nn.Module):
-    def __init__(self, param, latent_dim, epochs, lr, wd, bs=32):
+    def __init__(self, param, latent_dim, epochs, lr, wd, dropout=0.5):
         super().__init__()
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -30,25 +30,19 @@ class DeepSets(nn.Module):
                     context_size = layer.shape[0] * latent_dim
 
                 self.reducer.append(
-                    nn.Sequential(nn.Linear(dim, 2*dim), nn.Dropout(), nn.ReLU(),
-                                  nn.Linear(2*dim, 2*latent_dim), nn.Dropout(), nn.ReLU(),
-                                  nn.Linear(2*latent_dim, latent_dim)).to(self.device))
+                    nn.Sequential(nn.Linear(dim, 64), nn.ReLU(),
+                                  nn.Linear(64, latent_dim), nn.Dropout(dropout), nn.ReLU()).to(self.device))
         else:
             raise AttributeError('The given param is not a list or ndarray, but is {}'.format(type(param).__name__))
 
-
         dim = len(param) * latent_dim
         self.classifier = nn.Sequential(
-            nn.Linear(dim, 2*dim), nn.Dropout(), nn.ReLU(),
-            nn.Linear(2*dim, 2*latent_dim), nn.Dropout(), nn.ReLU(),
-            nn.Linear(2*latent_dim, latent_dim), nn.Dropout(), nn.ReLU(),
-            nn.Linear(latent_dim, 2)
+            nn.Linear(dim, 2)
         ).to(self.device)
 
         self.epochs = epochs
         self.lr = lr
         self.wd = wd
-        self.bs=bs
 
     def forward(self, x):
         if isinstance(x, np.ndarray):
@@ -69,7 +63,7 @@ class DeepSets(nn.Module):
 
             n = self.reducer[i](layer)
 
-            context = n.flatten().detach()
+            context = n.flatten()
 
             l.append(n.sum(axis=0))
 
@@ -88,14 +82,12 @@ class DeepSets(nn.Module):
         for e in range(self.epochs):
             tot_loss = 0
             for i, idx in enumerate(np.random.permutation(len(parameters))):
-                if i % self.bs == 0:
-                    opt.zero_grad()
+                opt.zero_grad()
                 y_pred = self.forward(parameters[idx])
                 loss = criterion(y_pred.view(1, -1), torch.tensor(labels[idx], dtype=torch.int64, device=self.device).view(1))
                 tot_loss += loss.item()
                 loss.backward()
-                if i % self.bs == 0 or i == len(parameters)-1:
-                    opt.step()
+                opt.step()
             if e % 10 == 0 or e == self.epochs-1:
                 logger.debug('Training DeepSets - Epoch {} - Loss={:.4f}'.format(e, tot_loss))
 

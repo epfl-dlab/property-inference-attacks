@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import StratifiedShuffleSplit
 from omegaconf import DictConfig
 from itertools import product
 
@@ -107,7 +108,7 @@ class Experiment:
 
     def run_targets(self):
         """Create and fit target models """
-        self.labels = [False]*self.n_targets + [True]*self.n_targets
+        self.labels = np.array([False]*self.n_targets + [True]*self.n_targets, dtype=np.int8)
         self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
                         [self.generator.sample(b) for b in self.labels]]
 
@@ -132,7 +133,7 @@ class Experiment:
         else:
             self.hyperparams = dict()
 
-        self.shadow_labels = [False] * self.n_shadows + [True] * self.n_shadows
+        self.shadow_labels = np.array([False] * self.n_shadows + [True] * self.n_shadows, dtype=np.int8)
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
                               [self.generator.sample(b) for b in self.shadow_labels]]
 
@@ -154,13 +155,34 @@ class Experiment:
         accuracy = [[accuracy_score(X[self.label_col], t.predict(X)) for X in X_test] for t in self.targets]
         return accuracy_score(self.labels, [np.argmax(acc) for acc in accuracy])
 
-    def run_threshold_test(self):
+    def __run_multiple(self, n, func, *args):
+        sss = StratifiedShuffleSplit(n_splits=n, train_size=0.8)
+        shadow_models = np.array(self.shadow_models)
+        shadow_labels = np.array(self.shadow_labels)
+
+        accs = []
+
+        for idx, _ in sss.split(shadow_models, shadow_labels):
+            self.shadow_models, self.shadow_labels = shadow_models[idx], shadow_labels[idx]
+            accs.append(func(*args))
+
+        self.shadow_models, self.shadow_labels = shadow_models, shadow_labels
+
+        return accs
+
+    def run_threshold_test(self, n_outputs=1):
         """Runs a threshold test attack on target models
+
+        Args:
+            n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
 
         Returns: Attack accuracy on target models
         """
         assert self.targets is not None
         assert self.shadow_models is not None
+
+        if n_outputs > 1:
+            return self.__run_multiple(n_outputs, self.run_threshold_test)
 
         y_true = [False, True]
         X_test = [self.generator.sample(b) for b in y_true]
@@ -184,17 +206,21 @@ class Experiment:
         y_pred = [higher_acc if acc > thr else not higher_acc for acc in accuracy]
         return accuracy_score(self.labels, y_pred)
 
-    def run_whitebox_deepsets(self, hyperparams):
+    def run_whitebox_deepsets(self, hyperparams, n_outputs=1):
         """Runs a whitebox attack on the target models using a DeepSets meta-classifier
 
         Args:
             hyperparams (dict or DictConfig): Hyperparameters for the DeepSets meta-classifier.
                 Accepted keywords are: latent_dim (default=5); epochs (default=20); learning_rate (default=1e-4); weight_decay (default=1e-4)
+            n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
 
         Returns: Attack accuracy on target models
         """
         assert self.targets is not None
         assert self.shadow_models is not None
+
+        if n_outputs > 1:
+            return self.__run_multiple(n_outputs, self.run_whitebox_deepsets, hyperparams)
 
         if hyperparams is not None:
             assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
@@ -218,16 +244,20 @@ class Experiment:
 
         return accuracy_score(self.labels, y_pred)
 
-    def run_whitebox_sort(self, sort=True):
+    def run_whitebox_sort(self, sort=True, n_outputs=1):
         """Runs a whitebox attack on the target models, by using the model parameters as features for a meta-classifier
 
         Args:
-            sort: whether to perform node sorting (to be used for permutation-invariant DNN)
+            sort (bool): whether to perform node sorting (to be used for permutation-invariant DNN)
+            n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
 
         Returns: Attack accuracy on target models
         """
         assert self.targets is not None
         assert self.shadow_models is not None
+
+        if n_outputs > 1:
+            return self.__run_multiple(n_outputs, self.run_whitebox_sort, sort)
 
         train = pd.DataFrame(data=[transform_parameters(s.parameters(), sort=sort)
                                     for s in self.shadow_models])
@@ -247,13 +277,19 @@ class Experiment:
 
         return accuracy_score(self.labels, y_pred)
 
-    def run_blackbox(self):
+    def run_blackbox(self, n_outputs=1):
         """Runs a blackbox attack on the target models, by using the result of random queries as features for a meta-classifier
+
+        Args:
+            n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
 
         Returns: Attack accuracy on target models
         """
         assert self.targets is not None
         assert self.shadow_models is not None
+
+        if n_outputs > 1:
+            return self.__run_multiple(n_outputs, self.run_blackbox)
 
         meta_classifier = LogisticRegression(max_iter=4096)
 

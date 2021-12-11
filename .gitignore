@@ -4,6 +4,7 @@ logs
 outputs
 dist
 propinfer.egg-info
+local
 
 *.pyc
 .DS_Store

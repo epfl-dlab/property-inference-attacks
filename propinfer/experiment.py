@@ -156,7 +156,7 @@ class Experiment:
         return accuracy_score(self.labels, [np.argmax(acc) for acc in accuracy])
 
     def __run_multiple(self, n, func, *args):
-        sss = StratifiedShuffleSplit(n_splits=n, train_size=0.8)
+        sss = StratifiedShuffleSplit(n_splits=n, train_size=0.5)
         shadow_models = np.array(self.shadow_models)
         shadow_labels = np.array(self.shadow_labels)
 

@@ -235,7 +235,7 @@ class MLP(Model):
     def parameters(self):
         params = self.model.state_dict()
         out = list()
-        for i in [0, 2, 4]:
+        for i in {int(k[0]) for k in params.keys()}:
             w = np.nan_to_num(params['{}.weight'.format(i)].detach().cpu().numpy())
             b = np.nan_to_num(params['{}.bias'.format(i)].view(-1, 1).detach().cpu().numpy())
             out.append([w, b])

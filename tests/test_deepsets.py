@@ -4,7 +4,7 @@ from propinfer.deepsets import DeepSets
 from propinfer import MLP
 from propinfer import GaussianGenerator
 
-from sklearn.metrics import accuracy_score
+from numpy import array
 
 DEFAULT_HYPERPARAMS_MLP = {
     "input_size": 4,
@@ -19,8 +19,7 @@ DEFAULT_HYPERPARAMS_MLP = {
 
 class Test(TestCase):
     def test_deepsets(self):
-        gen = GaussianGenerator()
         model = MLP('label', DEFAULT_HYPERPARAMS_MLP)
-        ds = DeepSets(model.parameters(), 10, 10, 1e-4, 1e-4)
-        guess = ds.forward(model.parameters())
-        assert len(guess) == 2
+        multi_params = [model.parameters()]*64
+        ds = DeepSets(model.parameters(), 10, 1, 1e-3, 1e-4)
+        ds.fit(multi_params, array([0]*64))

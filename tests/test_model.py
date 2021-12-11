@@ -4,6 +4,7 @@ from propinfer import LogReg, MLP
 from propinfer import GaussianGenerator
 
 from sklearn.metrics import accuracy_score
+from numpy import sum, abs
 
 DEFAULT_HYPERPARAMS_LOGREG = {
     "max_iter": 100
@@ -30,13 +31,12 @@ class Test(TestCase):
         assert accuracy_score(train['label'], model.predict(train)) > 0.75
 
     def test_mlp(self):
-        gen = GaussianGenerator(num_samples=8192)
+        gen = GaussianGenerator()
 
-        model1 = MLP('label', DEFAULT_HYPERPARAMS_MLP)
-        model2 = MLP('label', DEFAULT_HYPERPARAMS_MLP)
+        model = MLP('label', DEFAULT_HYPERPARAMS_MLP)
+        weights = model.parameters()[0][0]
         train = gen.sample(False)
-        model1.fit(train)
-        model2.fit(train)
+        model.fit(train)
+        trained_weights = model.parameters()[0][0]
 
-        assert accuracy_score(train['label'], model1.predict(train)) + \
-               accuracy_score(train['label'], model2.predict(train)) > 1.2
+        assert sum(abs(weights - trained_weights)) > 1.

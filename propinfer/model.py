@@ -161,7 +161,7 @@ class MLP(Model):
         Args:
             label_col: the index of the column to be used as Label
             hyperparams (dict of DictConfig): hyperperameters for the Model
-                Accepted keywords: input_size (mandatory), num_classes (mandatory),
+                Accepted keywords: input_size (mandatory), num_classes (mandatory), layers (default=[64,16])
                 epochs (default=20), learning_rate (default=1e-1), weight_decay (default=1e-2),
                 batch_size (default=32), normalise (default=False)
         """
@@ -176,30 +176,24 @@ class MLP(Model):
             normalise = False
         super(MLP, self).__init__(label_col, normalise)
 
+        layers = hyperparams['layers'] if 'layers' in hyperparams.keys() else [64, 16]
+
         input_size = hyperparams['input_size']
         num_classes = hyperparams['num_classes']
 
-        hidden_diff = (input_size-num_classes)//4
+        seq = list()
+        for l in layers:
+            seq.extend([
+                nn.Linear(input_size, l),
+                nn.ReLU()
+            ])
+            input_size = l
 
-        hidden_1 = input_size - hidden_diff
-        hidden_1 = hidden_1 if hidden_1 > 8 else 8
+        seq.extend([
+            nn.Linear(input_size, num_classes)
+        ])
 
-        hidden_2 = input_size - hidden_diff*2
-        hidden_2 = hidden_2 if hidden_2 > 8 else 8
-
-        hidden_3 = input_size - hidden_diff*3
-        hidden_3 = hidden_3 if hidden_3 > 8 else 8
-
-        self.model = nn.Sequential(
-            nn.Linear(input_size, hidden_1),
-            nn.ReLU(),
-            nn.Linear(hidden_1, hidden_2),
-            nn.ReLU(),
-            nn.Linear(hidden_2, hidden_3),
-            nn.ReLU(),
-            nn.Linear(hidden_3, num_classes),
-            nn.ReLU()
-        ).to(self.device)
+        self.model = nn.Sequential(*seq).to(self.device)
 
         self.epochs = hyperparams['epochs'] if 'epochs' in hyperparams.keys() else 10
         self.lr = hyperparams['learning_rate'] if 'learning_rate' in hyperparams.keys() else 1e-1

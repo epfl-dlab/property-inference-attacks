@@ -60,7 +60,7 @@ class DeepSets(nn.Module):
             offset += dim[0] * dim[1]
 
             if context is not None:
-                layer = torch.cat((layer, context.view(self.bs, 1, -1).repeat_interleave(dim[0], dim=1)), dim=2)
+                layer = torch.cat((layer, context.view(layer.size()[0], 1, -1).repeat_interleave(dim[0], dim=1)), dim=2)
 
             n = self.reducer[i](layer)
             context = n.flatten(start_dim=1)

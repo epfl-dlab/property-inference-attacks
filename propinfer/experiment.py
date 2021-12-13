@@ -242,6 +242,8 @@ class Experiment:
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)
 
+        del train, test, meta_classifier
+
         return accuracy_score(self.labels, y_pred)
 
     def run_whitebox_sort(self, sort=True, n_outputs=1):
@@ -265,15 +267,12 @@ class Experiment:
         test = pd.DataFrame(data=[transform_parameters(t.parameters(), sort=sort)
                                   for t in self.targets])
 
-        input_size = train.shape[1]
-        hidden = [2**i for i in range(3, int(np.log2(input_size)))]
-        hidden = hidden if len(hidden) >= 3 else [8, 16, 32]
-
-        meta_classifier = MLPClassifier(solver='adam', hidden_layer_sizes=reversed(hidden), max_iter=100,
-                                        learning_rate_init=1e-2, alpha=1e-2, early_stopping=True)
+        meta_classifier = MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True)
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)
+
+        del train, test, meta_classifier
 
         return accuracy_score(self.labels, y_pred)
 
@@ -300,5 +299,7 @@ class Experiment:
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)
+
+        del train, test, meta_classifier
 
         return accuracy_score(self.labels, y_pred)

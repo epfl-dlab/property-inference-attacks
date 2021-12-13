@@ -16,7 +16,8 @@ DEFAULT_HYPERPARAMS_MLP = {
     "epochs": 20,
     "learning_rate": 1e-3,
     "weight_decay": 1e-4,
-    "batch_size": 32
+    "batch_size": 32,
+    "layers": [8]
 }
 
 
@@ -34,9 +35,9 @@ class Test(TestCase):
         gen = GaussianGenerator()
 
         model = MLP('label', DEFAULT_HYPERPARAMS_MLP)
-        weights = model.parameters()[0][0]
+        assert model.parameters()[0][0].shape[0] == 8
+
         train = gen.sample(False)
         model.fit(train)
-        trained_weights = model.parameters()[0][0]
 
-        assert sum(abs(weights - trained_weights)) > 1.
+        assert accuracy_score(train['label'], model.predict(train)) > 0.75

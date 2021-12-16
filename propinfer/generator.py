@@ -1,4 +1,4 @@
-from numpy import array, eye
+from numpy import array, eye, float32
 from numpy.random import multivariate_normal
 from pandas import DataFrame, concat
 from sklearn.model_selection import StratifiedShuffleSplit
@@ -36,7 +36,8 @@ class GaussianGenerator(Generator):
         for i in range(1, 5):
             cov[0, i] = cov[i, 0] = 0.5
 
-        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples), columns=['label', 'f1', 'f2', 'f3', 'f4'])
+        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples),
+                         columns=['label', 'f1', 'f2', 'f3', 'f4'], dtype=float32)
         data['label'] = (data['label'] > 0).astype('int32')
 
         return data
@@ -52,7 +53,8 @@ class IndependentPropertyGenerator(Generator):
         for i in range(1, 4):
             cov[0, i] = cov[i, 0] = 0.5
 
-        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples), columns=['label', 'f1', 'f2', 'f3', 'f4'])
+        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples),
+                         columns=['label', 'f1', 'f2', 'f3','f4'], dtype=float32)
         data['label'] = (data['label'] > 0).astype('int32')
 
         return data

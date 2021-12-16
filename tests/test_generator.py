@@ -12,6 +12,7 @@ class TestExperiment(TestCase):
         attr3 = randint(0, 4, 32768)
 
         data = DataFrame(data=stack((attr1, attr2, attr3), axis=1), columns=['Bin', 'Tri', 'Quad'], dtype=int32)
+        data.loc[:, 'Cat'] = data.Quad.astype('category')
 
         gen = SubsamplingGenerator(data, 'Quad', 'Bin', proportion=0.1)
 
@@ -45,3 +46,9 @@ class TestExperiment(TestCase):
         sample = gen.sample(True)
         assert 0.25 < sum(sample['Tri'] == 1) / len(sample) < 0.4
         assert 0.09 < sum(sample['Quad'] == 1) / len(sample) < 0.11
+
+        gen = SubsamplingGenerator(data, 'Tri', 'Cat', target_category=1, proportion=0.1)
+        gen.sample(False)
+
+        gen = SubsamplingGenerator(data, 'Cat', 'Bin', proportion=0.1)
+        gen.sample(False)

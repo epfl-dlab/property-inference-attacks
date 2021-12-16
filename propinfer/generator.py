@@ -130,10 +130,10 @@ class SubsamplingGenerator(Generator):
         else:
             sss = StratifiedShuffleSplit(train_size=self.num_samples)
             idx, _ = next(sss.split(data, data[[self.label_col, self.attr]]))
-            out = data.iloc[idx]
+            out = data.iloc[idx].copy()
 
         if not (out.dtypes[self.label_col] == int32 or out.dtypes[self.label_col] == int64):
-            out[self.label_col] = out[self.label_col].astype('category').cat.codes.astype(int32)
+            out[self.label_col] = out[self.label_col].astype('category').cat.codes
 
         return get_dummies(out)
 

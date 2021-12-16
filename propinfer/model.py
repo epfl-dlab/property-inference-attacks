@@ -5,7 +5,6 @@ import warnings
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.exceptions import ConvergenceWarning
-from pandas import get_dummies
 
 from torch.nn.functional import softmax
 from omegaconf import DictConfig
@@ -44,11 +43,8 @@ class Model:
         feature_cols = df.columns.to_list()
         feature_cols.remove(self.label_col)
 
-        X = get_dummies(df[feature_cols])
+        X = df[feature_cols].copy()
         y = df[self.label_col].copy()
-
-        if not (y.dtype == np.int64):
-            y = y.astype('category').cat.codes.astype(np.int64)
 
         if self.normalise:
             if train or self.train_mean is None:

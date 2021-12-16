@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from propinfer import SubsamplingGenerator
-from numpy import stack, sum
+from numpy import stack, sum, int32
 from numpy.random import randint
 from pandas import DataFrame
 
@@ -11,7 +11,7 @@ class TestExperiment(TestCase):
         attr2 = randint(0, 3, 32768)
         attr3 = randint(0, 4, 32768)
 
-        data = DataFrame(data=stack((attr1, attr2, attr3), axis=1), columns=['Bin', 'Tri', 'Quad'])
+        data = DataFrame(data=stack((attr1, attr2, attr3), axis=1), columns=['Bin', 'Tri', 'Quad'], dtype=int32)
 
         gen = SubsamplingGenerator(data, 'Quad', 'Bin', proportion=0.1)
 

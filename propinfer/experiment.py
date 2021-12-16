@@ -135,10 +135,10 @@ class Experiment:
 
         self.shadow_labels = np.array([False] * self.n_shadows + [True] * self.n_shadows, dtype=np.int8)
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
-                              [self.generator.sample(b) for b in self.shadow_labels]]
+                              [self.generator.sample(b, adv=True) for b in self.shadow_labels]]
 
         scores = [accuracy_score(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
-                      enumerate([self.generator.sample(b) for b in self.shadow_labels])]
+                      enumerate([self.generator.sample(b, adv=True) for b in self.shadow_labels])]
         logger.debug('Shadow models accuracy ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
             model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
@@ -150,7 +150,7 @@ class Experiment:
         assert self.targets is not None
 
         y_true = [False, True]
-        X_test = [self.generator.sample(b) for b in y_true]
+        X_test = [self.generator.sample(b, adv=True) for b in y_true]
 
         accuracy = [[accuracy_score(X[self.label_col], t.predict(X)) for X in X_test] for t in self.targets]
         return accuracy_score(self.labels, [np.argmax(acc) for acc in accuracy])
@@ -185,7 +185,7 @@ class Experiment:
             return self.__run_multiple(n_outputs, self.run_threshold_test)
 
         y_true = [False, True]
-        X_test = [self.generator.sample(b) for b in y_true]
+        X_test = [self.generator.sample(b, adv=True) for b in y_true]
 
         shadow_labels = np.array(self.shadow_labels, dtype=bool)
         accuracy = np.array([[accuracy_score(X[self.label_col], s.predict(X)) for X in X_test] for s in self.shadow_models])
@@ -292,7 +292,8 @@ class Experiment:
 
         meta_classifier = LogisticRegression(max_iter=4096)
 
-        queries = pd.concat([self.generator.sample(True), self.generator.sample(False)]).sample(self.n_queries)
+        queries = pd.concat([self.generator.sample(True, adv=True),
+                             self.generator.sample(False, adv=True)]).sample(self.n_queries)
 
         train = pd.DataFrame(data=[s.predict(queries).flatten() for s in self.shadow_models])
         test  = pd.DataFrame(data=[s.predict(queries).flatten() for s in self.targets])

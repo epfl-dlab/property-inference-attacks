@@ -1,6 +1,6 @@
-from numpy import array, eye
+from numpy import array, eye, int32, int64, float32
 from numpy.random import multivariate_normal
-from pandas import DataFrame, concat
+from pandas import DataFrame, concat, get_dummies
 from sklearn.model_selection import StratifiedShuffleSplit
 
 
@@ -36,7 +36,8 @@ class GaussianGenerator(Generator):
         for i in range(1, 5):
             cov[0, i] = cov[i, 0] = 0.5
 
-        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples), columns=['label', 'f1', 'f2', 'f3', 'f4'])
+        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples),
+                         columns=['label', 'f1', 'f2', 'f3', 'f4'], dtype=float32)
         data['label'] = (data['label'] > 0).astype('int32')
 
         return data
@@ -52,7 +53,8 @@ class IndependentPropertyGenerator(Generator):
         for i in range(1, 4):
             cov[0, i] = cov[i, 0] = 0.5
 
-        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples), columns=['label', 'f1', 'f2', 'f3', 'f4'])
+        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples),
+                         columns=['label', 'f1', 'f2', 'f3', 'f4'], dtype=float32)
         data['label'] = (data['label'] > 0).astype('int32')
 
         return data
@@ -101,6 +103,7 @@ class SubsamplingGenerator(Generator):
             assert target_category in self.data[sensitive_attribute].cat.categories, \
                 'target category {} not in {} column'.format(target_category, sensitive_attribute)
             self.pos = data[sensitive_attribute] == target_category
+            self.data[sensitive_attribute] = self.data[sensitive_attribute].cat.codes
 
         self.set_proportion(proportion)
 
@@ -123,11 +126,16 @@ class SubsamplingGenerator(Generator):
             idx, _ = next(sss.split(data[~pos], data[~pos][[self.label_col, self.attr]]))
             neg_df = data[~pos].iloc[idx]
 
-            return concat((pos_df, neg_df))
+            out = concat((pos_df, neg_df))
         else:
             sss = StratifiedShuffleSplit(train_size=self.num_samples)
             idx, _ = next(sss.split(data, data[[self.label_col, self.attr]]))
-            return data.iloc[idx]
+            out = data.iloc[idx]
+
+        if not (out.dtypes[self.label_col] == int32 or out.dtypes[self.label_col] == int64):
+            out[self.label_col] = out[self.label_col].astype('category').cat.codes.astype(int32)
+
+        return get_dummies(out)
 
     def set_proportion(self, proportion):
         assert 0. <= proportion <= 1., 'proportion is {:.2f} but should be in [0., 1.]'.format(proportion)

@@ -47,13 +47,15 @@ class Model:
         y = df[self.label_col].copy()
 
         if self.normalise:
+            norm = X.select_dtypes(exclude=[np.uint8, np.int8])
+
             if train or self.train_mean is None:
-                self.train_mean = X.mean()
-                self.train_std = X.std()
+                self.train_mean = norm.mean()
+                self.train_std = norm.std()
                 if self.train_std < 1e-5:
                     self.train_std = 1.
 
-            X = (X - self.train_mean) / self.train_std
+            X[norm.columns] = (norm - self.train_mean) / self.train_std
 
         return X, y
 

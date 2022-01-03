@@ -3,6 +3,9 @@ from numpy.random import multivariate_normal
 from pandas import DataFrame, concat, get_dummies
 from sklearn.model_selection import StratifiedShuffleSplit
 
+__pdoc__ = {
+    'multivariate_normal': False
+}
 
 class Generator:
     """An abstraction class used to query for data"""
@@ -26,6 +29,9 @@ class Generator:
 
 
 class GaussianGenerator(Generator):
+    """Generator sampling from a multivariate Gaussian Distribution in which features are correlated.
+    Label is made categorical by checking whether it is positive or negative."""
+
     def sample(self, b, adv=False):
         mean = array([0]*5)
         if b:
@@ -44,6 +50,8 @@ class GaussianGenerator(Generator):
 
 
 class IndependentPropertyGenerator(Generator):
+    """Generator sampling from a multivariate Gaussian Distribution in which features are not correlated with the label, but are correlated between each other.
+    Label is made categorical by checking whether it is positive or negative."""
     def sample(self, b, adv=False):
         mean = array([0] * 5)
         if b:

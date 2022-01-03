@@ -3,7 +3,9 @@
 In this repository, we propose a modular framework to run Property Inference Attacks on Machine Learning models.
 
 [![Continuous Integration](https://github.com/epfl-dlab/property-inference-framework/actions/workflows/python-app.yml/badge.svg)](https://github.com/epfl-dlab/property-inference-framework/actions/workflows/python-app.yml)
-![PyPI](https://img.shields.io/pypi/v/propinfer)
+[![PyPI](https://img.shields.io/pypi/v/propinfer)](https://pypi.org/project/propinfer/)
+[![Documentation](https://img.shields.io/badge/Documentation-v1.1.0-informational)](https://epfl-dlab.github.io/property-inference-attacks/)
+
 
 ## Installation
 
@@ -57,6 +59,8 @@ To run a simple experiment, please simply use the provided `run.py`. You can cha
 To run an experiment using a specific `my_experiments.yaml` config file, you should place its yaml config file in `/config/experiments`, and then run:
 
 `python run.py experiments=my_experiments`
+
+Alternatively, you can instanciate an `Experiment` object using a specific `Generator` and `Model`, and then run both targets and shadows before performing an attack.
 
 It is possible to provide a list as a model hyperparameter: in that case, the framework will automatically optimise between the given options.
 

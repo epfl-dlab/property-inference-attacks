@@ -72,7 +72,7 @@ class Experiment:
         keys = list()
 
         for k, v in self.hyperparams.items():
-            if isinstance(v, list):
+            if isinstance(v, list) and k != 'layers':
                 optims.append(v)
                 keys.append(k)
 
@@ -117,21 +117,26 @@ class Experiment:
         logger.debug('Target models accuracy - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
             np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
-    def run_shadows(self, model, hyperparams):
+    def run_shadows(self, model=None, hyperparams=None):
         """Create and fit shadow models
 
         Args:
-            model: a Model class that represents the model to be used
+            model: a Model class that represents the model to be used. If None, will be the same as target models
             hyperparams (dict or DictConfig): dictionary containing every useful hyper-parameter for the Model;
-                Hyperparameters of shadow models will NOT be optimised
+                Hyperparameters of shadow models will NOT be optimised. If None, will be the same as target models.
         """
-        assert issubclass(model, Model), 'The given model is not a subclass of Model'
+        if model is not None:
+            assert issubclass(model, Model), 'The given model is not a subclass of Model'
 
-        if hyperparams is not None:
-            assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
-                'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
+            if hyperparams is not None:
+                assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
+                    'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
+            else:
+                self.hyperparams = dict()
+
         else:
-            self.hyperparams = dict()
+            model = self.model
+            hyperparams = self.hyperparams
 
         self.shadow_labels = np.array([False] * self.n_shadows + [True] * self.n_shadows, dtype=np.int8)
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in

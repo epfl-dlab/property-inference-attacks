@@ -17,11 +17,11 @@ class TestExperiment(TestCase):
         gen = SubsamplingGenerator(data, 'Quad', 'Bin', proportion=0.1)
 
         sample = gen.sample(False)
-        assert 0.4 < sum(sample['Bin'] == 1) / len(sample) < 0.6
+        assert 0.49 < sum(sample['Bin_1']) / len(sample) < 0.51
         assert 0.2 < sum(sample['Quad'] == 1) / len(sample) < 0.3
 
         sample = gen.sample(True)
-        assert 0.09 < sum(sample['Bin'] == 1) / len(sample) < 0.11
+        assert 0.09 < sum(sample['Bin_1']) / len(sample) < 0.11
         assert 0.2 < sum(sample['Quad'] == 1) / len(sample) < 0.3
 
         self.assertRaises(AssertionError, SubsamplingGenerator, data, 'Tri', 'Quad', proportion=0.1)
@@ -29,23 +29,23 @@ class TestExperiment(TestCase):
         gen = SubsamplingGenerator(data, 'Tri', 'Quad', target_category=1, proportion=0.1)
         sample = gen.sample(False)
         assert 0.25 < sum(sample['Tri'] == 1) / len(sample) < 0.4
-        assert 0.2 < sum(sample['Quad'] == 1) / len(sample) < 0.3
+        assert 0.49 < sum(sample['Quad_1']) / len(sample) < 0.51
 
         sample = gen.sample(True)
         assert 0.25 < sum(sample['Tri'] == 1) / len(sample) < 0.4
-        assert 0.09 < sum(sample['Quad'] == 1) / len(sample) < 0.11
-        assert 0.25 < sum(sample['Quad'] == 0) / len(sample) < 0.35
-        assert 0.25 < sum(sample['Quad'] == 2) / len(sample) < 0.35
-        assert 0.25 < sum(sample['Quad'] == 3) / len(sample) < 0.35
+        assert 0.09 < sum(sample['Quad_1']) / len(sample) < 0.11
+        assert 0.25 < sum(sample['Quad_0']) / len(sample) < 0.35
+        assert 0.25 < sum(sample['Quad_2']) / len(sample) < 0.35
+        assert 0.25 < sum(sample['Quad_3']) / len(sample) < 0.35
 
         gen = SubsamplingGenerator(data, 'Tri', 'Quad', target_category=1, proportion=0.1, split=True)
         sample = gen.sample(False)
         assert 0.25 < sum(sample['Tri'] == 1) / len(sample) < 0.4
-        assert 0.2 < sum(sample['Quad'] == 1) / len(sample) < 0.3
+        assert 0.49 < sum(sample['Quad_1']) / len(sample) < 0.51
 
         sample = gen.sample(True)
         assert 0.25 < sum(sample['Tri'] == 1) / len(sample) < 0.4
-        assert 0.09 < sum(sample['Quad'] == 1) / len(sample) < 0.11
+        assert 0.09 < sum(sample['Quad_1']) / len(sample) < 0.11
 
         gen = SubsamplingGenerator(data, 'Tri', 'Cat', target_category=1, proportion=0.1)
         gen.sample(False)

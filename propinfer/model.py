@@ -12,7 +12,7 @@ from omegaconf import DictConfig
 
 class Model:
     def __init__(self, label_col, normalise):
-        """An abstract class to be extended to represent the models that will be attacked
+        """An abstract class to be extended to represent the models that will be attacked.
 
         Args:
             label_col: the index of the column to be used as Label
@@ -30,7 +30,7 @@ class Model:
         self.train_std = None
 
     def _prepare_data(self, df, train=True):
-        """Prepares data by separating features from labels and eventually normalising features
+        """Prepares data by separating features from labels and eventually normalising features.
 
         Args:
             df (DataFrame): the data to be prepared
@@ -60,7 +60,7 @@ class Model:
         return X, y
 
     def _prepare_dataloader(self, df, bs=32, train=True):
-        """Prepares data, and puts it inside a ready-to-use PyTorch DataLoader
+        """Prepares data, and puts it inside a ready-to-use PyTorch DataLoader.
 
         Args:
             df (DataFrame): the data to be prepared
@@ -103,11 +103,13 @@ class Model:
         raise NotImplementedError
 
     def parameters(self):
-        """Returns the model's parameters
-        If the model has only one layer, or is not a DNN, as a numpy array
-        If the model has multiple layers without biases, as a list of numpy arrays representing each layer
-        If the model has multiple layers with weights and biases, arrays of the corresponding weights and biases are
-        grouped in a list, with weights going before biases
+        """Returns the model's parameters.
+
+         * If the model has only one layer, or is not a DNN, as a numpy array.
+         * If the model has multiple layers without biases, as a list of numpy arrays representing each layer.
+         * If the model has multiple layers with weights and biases, arrays of the corresponding weights and biases are
+        grouped in a list, with weights going before biases.
+
         Returns: the model's parameters
         """
 

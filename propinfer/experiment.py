@@ -22,13 +22,13 @@ class Experiment:
         """Object representing an experiment, based on its data generator and model pair
 
         Args:
-            generator: a Generator object, used to query data
-            model: a Model class that represents the model to be used
-            n_targets: the number of target pairs used for each experiment
-            n_shadows: the number of shadow model pairs run for this experiment
-            hyperparams: dictionary containing every useful hyper-parameter for the Model;
-                         if a list is provided for some hyperparameter(s), we optimise between all given options
-            n_queries: the number of queries used in the scope of grey- and black-box attacks
+            generator (Generator): data abstraction used for this experiment
+            model (Model.__class__): a Model class that represents the model to be used
+            n_targets (int): the number of target pairs used for each experiment
+            n_shadows (int): the number of shadow model pairs run for this experiment
+            hyperparams (dict or DictConfig): dictionary containing every useful hyper-parameter for the Model;
+                         if a list is provided for some hyperparameter(s), we optimise between all given options (except for keyword `layers`)
+            n_queries (int): the number of queries used in the scope of grey- and black-box attacks
         """
 
         assert isinstance(generator, Generator), 'The given generator is not an instance of Generator, but {}'.format(type(generator).__name__)
@@ -121,7 +121,7 @@ class Experiment:
         """Create and fit shadow models
 
         Args:
-            model: a Model class that represents the model to be used. If None, will be the same as target models
+            model (Model.__class__): a Model class that represents the model to be used. If None, will be the same as target models
             hyperparams (dict or DictConfig): dictionary containing every useful hyper-parameter for the Model;
                 Hyperparameters of shadow models will NOT be optimised. If None, will be the same as target models.
         """

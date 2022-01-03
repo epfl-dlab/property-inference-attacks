@@ -6,6 +6,10 @@ import numpy as np
 import logging
 logger = logging.getLogger('propinfer')
 
+__pdoc__ = {
+    'DeepSets': False
+}
+
 
 class DeepSets(nn.Module):
     def __init__(self, param, latent_dim, epochs, lr, wd, dropout=0.5, bs=32):

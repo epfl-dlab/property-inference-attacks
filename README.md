@@ -3,10 +3,11 @@
 In this repository, we propose a modular framework to run Property Inference Attacks on Machine Learning models.
 
 [![Continuous Integration](https://github.com/epfl-dlab/property-inference-framework/actions/workflows/python-app.yml/badge.svg)](https://github.com/epfl-dlab/property-inference-framework/actions/workflows/python-app.yml)
+![PyPI](https://img.shields.io/pypi/v/propinfer)
 
 ## Installation
 
-You can get this package directly from pip or conda:
+You can get this package directly from pip:
 
 `python -m pip install propinfer`
 

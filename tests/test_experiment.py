@@ -50,7 +50,7 @@ class TestExperiment(TestCase):
 
         assert self.exp.run_loss_test() > 0.25
         assert self.exp.run_threshold_test() > 0.25
-        assert self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS) > 0.
+        assert self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS) > 0.5
 
         res = dict()
         res['whitebox'] = self.exp.run_whitebox_sort()
@@ -88,3 +88,25 @@ class TestExperiment(TestCase):
         assert len(self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS, n_outputs=2)) == 2
         assert len(self.exp.run_whitebox_sort(n_outputs=2)) == 2
         assert len(self.exp.run_blackbox(n_outputs=2)) == 2
+
+    def test_attack_regression(self):
+        self.exp = Experiment(self.gen, 'label', self.model, self.num_targets, self.num_shadows, {'max_iter': 100},
+                              n_classes=1, range=(-1., 1.))
+
+        self.exp.run_targets()
+        self.exp.run_shadows(LogReg, {'max_iter': 100})
+
+        assert self.exp.run_whitebox_sort() < 0.5
+        assert self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS) < 0.5
+        assert self.exp.run_blackbox() < 0.5
+
+    def test_attack_multiclass(self):
+        self.exp = Experiment(self.gen, 'label', self.model, self.num_targets, self.num_shadows, {'max_iter': 100},
+                              n_classes=3)
+
+        self.exp.run_targets()
+        self.exp.run_shadows(LogReg, {'max_iter': 100})
+
+        assert self.exp.run_whitebox_sort() > 0.5
+        assert self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS) > 0.5
+        assert self.exp.run_blackbox() > 0.5

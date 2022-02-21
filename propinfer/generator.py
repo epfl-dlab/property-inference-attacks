@@ -1,3 +1,4 @@
+import numpy as np
 from numpy import array, eye, int32, int64, float32
 from numpy.random import multivariate_normal
 from pandas import DataFrame, concat, get_dummies
@@ -14,13 +15,13 @@ class Generator:
         assert isinstance(num_samples, int), 'num_samples should be an int, but {} was provided'.format(type(num_samples).__name__)
         self.num_samples = num_samples
 
-    def sample(self, b, adv=False):
+    def sample(self, label, adv=False):
         """Returns a dataset sampled from the data; the boolean b describes whether or not the output dataset should have
         or not the property that is being attacked
 
         Args:
-            b: a boolean describing whether output data should respond to the queried property
-            adv: a boolean describing whether we are using target or adversary data
+            label (int): the label of the class the output dataset should belong to
+            adv (bool): a boolean describing whether we are using target or adversary data
 
         Returns:
             a pandas DataFrame representing our dataset for this experiment
@@ -32,10 +33,9 @@ class GaussianGenerator(Generator):
     """Generator sampling from a multivariate Gaussian Distribution in which features are correlated.
     Label is made categorical by checking whether it is positive or negative."""
 
-    def sample(self, b, adv=False):
+    def sample(self, label, adv=False):
         mean = array([0]*5)
-        if b:
-            mean[4] = 1
+        mean[4] = label
 
         cov = eye(5)
 
@@ -52,10 +52,9 @@ class GaussianGenerator(Generator):
 class IndependentPropertyGenerator(Generator):
     """Generator sampling from a multivariate Gaussian Distribution in which features are not correlated with the label, but are correlated between each other.
     Label is made categorical by checking whether it is positive or negative."""
-    def sample(self, b, adv=False):
+    def sample(self, label, adv=False):
         mean = array([0] * 5)
-        if b:
-            mean[4] = 1
+        mean[4] = label
 
         cov = eye(5)
         for i in range(1, 4):
@@ -72,7 +71,7 @@ class SubsamplingGenerator(Generator):
     def __init__(self, data, label_col, sensitive_attribute, target_category=None,
                  num_samples=1024, proportion=0.5, split=False):
         """Generator subsampling records from a larger dataset.
-        Samples using a specific proportion for label 1, and for proportion of 0.5 for label 0
+        Samples using a specific proportion for label 1, and for proportion of 0.5 for label 0. Only works with boolean labels
 
         Args:
             data (pandas.Dataframe): the larger dataset to subsample from
@@ -118,7 +117,9 @@ class SubsamplingGenerator(Generator):
 
         self.set_proportion(proportion)
 
-    def sample(self, b, adv=False):
+    def sample(self, label, adv=False):
+        assert np.isclose(label, 0) or np.isclose(label, 1)
+
         if self.split:
             data = self.data.iloc[self.adv] if adv else self.data.iloc[self.tar]
             pos = self.pos.iloc[self.adv] if adv else self.pos.iloc[self.tar]
@@ -126,7 +127,7 @@ class SubsamplingGenerator(Generator):
             data = self.data
             pos = self.pos
 
-        prop = self.proportion if b else 0.5
+        prop = self.proportion if label else 0.5
 
         # Sampling positive examples
         sss = StratifiedShuffleSplit(train_size=int(self.num_samples * prop))

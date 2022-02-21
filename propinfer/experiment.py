@@ -18,17 +18,19 @@ logger = logging.getLogger('propinfer')
 
 
 class Experiment:
-    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1024):
+    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1024, n_classes=2, range=None):
         """Object representing an experiment, based on its data generator and model pair
 
         Args:
             generator (Generator): data abstraction used for this experiment
             model (Model.__class__): a Model class that represents the model to be used
-            n_targets (int): the number of target pairs used for each experiment
-            n_shadows (int): the number of shadow model pairs run for this experiment
+            n_targets (int): the number of target models of each class
+            n_shadows (int): the number of shadow models of each class
             hyperparams (dict or DictConfig): dictionary containing every useful hyper-parameter for the Model;
                          if a list is provided for some hyperparameter(s), we optimise between all given options (except for keyword `layers`)
             n_queries (int): the number of queries used in the scope of grey- and black-box attacks
+            n_classes (int): the number of classes considered for property inference; if 1 then a regression is performed
+            range (tuple): the range of values accepted for regression tasks (needed for regression, ignored for classification)
         """
 
         assert isinstance(generator, Generator), 'The given generator is not an instance of Generator, but {}'.format(type(generator).__name__)
@@ -57,6 +59,13 @@ class Experiment:
 
         assert isinstance(n_queries, int), 'The given n_queries is not an integer, but is {}'.format(type(n_queries).__name__)
         self.n_queries = n_queries
+
+        assert isinstance(n_classes, int), 'The given n_classes is not an integer, but is {}'.format(type(n_classes).__name__)
+        if n_classes == 1:
+            assert range is not None
+        self.n_classes = n_classes
+        self.range = range
+
 
         self.targets = None
         self.labels = None
@@ -108,12 +117,18 @@ class Experiment:
 
     def run_targets(self):
         """Create and fit target models """
-        self.labels = np.array([False]*self.n_targets + [True]*self.n_targets, dtype=np.int8)
+        if self.n_classes > 1:
+            self.labels = np.concatenate([[i]*self.n_targets for i in range(self.n_classes)], dtype=np.int8)
+        elif self.n_classes == 1:
+            self.labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_targets)
+        else:
+            raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
+
         self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
-                        [self.generator.sample(b) for b in self.labels]]
+                        [self.generator.sample(label) for label in self.labels]]
 
         scores = [accuracy_score(data[self.label_col], self.targets[i].predict(data)) for i, data in
-                  enumerate([self.generator.sample(b) for b in self.labels])]
+                  enumerate([self.generator.sample(label) for label in self.labels])]
         logger.debug('Target models accuracy - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
             np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
@@ -138,21 +153,28 @@ class Experiment:
             model = self.model
             hyperparams = self.hyperparams
 
-        self.shadow_labels = np.array([False] * self.n_shadows + [True] * self.n_shadows, dtype=np.int8)
+        if self.n_classes > 1:
+            self.shadow_labels = np.concatenate([[i]*self.n_shadows for i in range(self.n_classes)], dtype=np.int8)
+        elif self.n_classes == 1:
+            self.shadow_labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_shadows)
+        else:
+            raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
+
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
-                              [self.generator.sample(b, adv=True) for b in self.shadow_labels]]
+                              [self.generator.sample(label, adv=True) for label in self.shadow_labels]]
 
         scores = [accuracy_score(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
-                      enumerate([self.generator.sample(b, adv=True) for b in self.shadow_labels])]
+                      enumerate([self.generator.sample(label, adv=True) for label in self.shadow_labels])]
         logger.debug('Shadow models accuracy ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
             model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_loss_test(self):
-        """Runs a loss test attack on target models
+        """Runs a loss test attack on target models. Works only for the binary classification task.
 
         Returns: Attack accuracy on target models
         """
         assert self.targets is not None
+        assert self.n_classes == 2
 
         y_true = [False, True]
         X_test = [self.generator.sample(b, adv=True) for b in y_true]
@@ -176,7 +198,7 @@ class Experiment:
         return accs
 
     def run_threshold_test(self, n_outputs=1):
-        """Runs a threshold test attack on target models
+        """Runs a threshold test attack on target models. Works only for the binary classification task.
 
         Args:
             n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
@@ -185,6 +207,7 @@ class Experiment:
         """
         assert self.targets is not None
         assert self.shadow_models is not None
+        assert self.n_classes == 2
 
         if n_outputs > 1:
             return self.__run_multiple(n_outputs, self.run_threshold_test)

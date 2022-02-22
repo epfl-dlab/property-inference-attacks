@@ -73,7 +73,7 @@ class ProbitGenerator(Generator):
     def sample(self, label, adv=False):
         beta = array([-1., 1., -0.5, 0.5])
         x = multivariate_normal(zeros(4), eye(4), size=self.num_samples)
-        y = x @ beta + normal(0., 1.1+label, size=self.num_samples) + 0.5
+        y = x @ beta + normal(0., 1+label, size=self.num_samples) + 0.5
 
         data = DataFrame(data=x,
                          columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)

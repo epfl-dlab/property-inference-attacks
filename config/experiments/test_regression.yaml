@@ -2,7 +2,7 @@ n_targets: 16
 n_shadows: 64
 n_queries: 1024
 n_classes: 1
-range: [-1., 1.]
+range: [0., 1.]
 models:
   - LogReg
   - MLP

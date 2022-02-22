@@ -7,6 +7,7 @@ models:
 generators:
   - GaussianGenerator
   - IndependentPropertyGenerator
+  - ProbitGenerator
 runs:
   - LossTest
   - ThresholdTest

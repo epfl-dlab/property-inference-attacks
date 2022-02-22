@@ -1,0 +1,18 @@
+n_targets: 256
+n_shadows: 2048
+n_queries: 1024
+n_classes: 1
+range: [-1., 1.]
+models:
+  - LogReg
+  - MLP
+generators:
+  - GaussianGenerator
+  - IndependentPropertyGenerator
+runs:
+  - Naive
+  - Sort
+  - DeepSets
+  - GreyBox
+  - BlackBox
+blackbox_model: LogReg

@@ -73,7 +73,8 @@ class DeepSets(nn.Module):
             l.append(n.sum(axis=1))
 
         x = torch.cat(l, dim=1)
-        return self.classifier(x)
+        x = self.classifier(x)
+        return x if self.n_classes > 1 else x.flatten()
 
     def parameters(self, recurse: bool = True):
         params = list(self.classifier.parameters())
@@ -124,7 +125,12 @@ class DeepSets(nn.Module):
         loader = DataLoader(self.__transform(parameters), batch_size=self.bs, shuffle=False)
 
         predictions = list()
-        for X in loader:
-            predictions.append(self.forward(X).detach().argmax(dim=1).cpu().numpy())
+
+        if self.n_classes > 1:
+            for X in loader:
+                predictions.append(self.forward(X).detach().argmax(dim=1).cpu().numpy())
+        else:
+            for X in loader:
+                predictions.append(self.forward(X).detach().cpu().numpy())
 
         return np.concatenate(predictions)

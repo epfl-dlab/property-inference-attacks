@@ -32,8 +32,7 @@ config = path.abspath(path.join(path.dirname(__file__), 'logging.ini'))
 logdir = path.abspath(path.join(path.dirname(__file__),"./logs"))
 if not path.isdir(logdir):
     mkdir(logdir)
-logfile = logdir + '/logs_property-inference-framework_' + TIMESTAMP
-
+logfile = logdir + '/logs_property-inference-attacks_' + TIMESTAMP + '.txt'
 
 logging.config.fileConfig(config, defaults={'logfilename': logfile})
 

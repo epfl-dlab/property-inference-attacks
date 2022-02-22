@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.metrics import accuracy_score, mean_absolute_error
 from sklearn.model_selection import StratifiedShuffleSplit
 from omegaconf import DictConfig
 from itertools import product
@@ -65,7 +65,6 @@ class Experiment:
             assert range is not None
         self.n_classes = n_classes
         self.range = range
-
 
         self.targets = None
         self.labels = None
@@ -203,7 +202,7 @@ class Experiment:
         Args:
             n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
 
-        Returns: Attack accuracy on target models
+        Returns: Attack accuracy on target models for the classification task, or mean absolute error for the regression task
         """
         assert self.targets is not None
         assert self.shadow_models is not None
@@ -272,7 +271,7 @@ class Experiment:
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred)
+        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)
 
     def run_whitebox_sort(self, sort=True, n_outputs=1):
         """Runs a whitebox attack on the target models, by using the model parameters as features for a meta-classifier
@@ -281,7 +280,7 @@ class Experiment:
             sort (bool): whether to perform node sorting (to be used for permutation-invariant DNN)
             n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
 
-        Returns: Attack accuracy on target models
+        Returns: Attack accuracy on target models for the classification task, or mean absolute error for the regression task
         """
         assert self.targets is not None
         assert self.shadow_models is not None
@@ -295,14 +294,15 @@ class Experiment:
         test = pd.DataFrame(data=[transform_parameters(t.parameters(), sort=sort)
                                   for t in self.targets])
 
-        meta_classifier = MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True)
+        meta_classifier = MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True) \
+            if self.n_classes > 1 else MLPRegressor(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True)
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred)
+        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)
 
     def run_blackbox(self, n_outputs=1):
         """Runs a blackbox attack on the target models, by using the result of random queries as features for a meta-classifier
@@ -310,7 +310,7 @@ class Experiment:
         Args:
             n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
 
-        Returns: Attack accuracy on target models
+        Returns: Attack accuracy on target models for the classification task, or mean absolute error for the regression task
         """
         assert self.targets is not None
         assert self.shadow_models is not None
@@ -318,10 +318,24 @@ class Experiment:
         if n_outputs > 1:
             return self.__run_multiple(n_outputs, self.run_blackbox)
 
-        meta_classifier = LogisticRegression(max_iter=4096)
+        meta_classifier = MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True) \
+            if self.n_classes > 1 else MLPRegressor(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True)
 
-        queries = pd.concat([self.generator.sample(True, adv=True),
-                             self.generator.sample(False, adv=True)]).sample(self.n_queries)
+        sample_len = len(self.generator.sample(0, adv=True))
+
+        if self.n_classes > 1:
+            queries = pd.concat([self.generator.sample(i, adv=True) for i in range(self.n_classes)])
+            labels = np.concatenate([[i]*sample_len for i in range(self.n_classes)])
+        elif self.n_classes == 1:
+            labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/10)
+            queries = pd.concat([self.generator.sample(i, adv=True) for i in labels])
+            labels = np.concatenate([[l]*sample_len for l in labels])
+        else:
+            raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
+
+        sss = StratifiedShuffleSplit(n_splits=1, train_size=self.n_queries)
+        idx, _ = list(sss.split(queries, labels))[0]
+        queries = queries.iloc[idx]
 
         train = pd.DataFrame(data=[s.predict(queries).flatten() for s in self.shadow_models])
         test  = pd.DataFrame(data=[s.predict(queries).flatten() for s in self.targets])
@@ -331,4 +345,4 @@ class Experiment:
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred)
+        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)

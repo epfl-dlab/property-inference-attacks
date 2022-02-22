@@ -1,6 +1,6 @@
 import numpy as np
-from numpy import array, eye, int32, int64, float32
-from numpy.random import multivariate_normal
+from numpy import array, eye, zeros, concatenate, int32, int64, float32
+from numpy.random import normal, multivariate_normal
 from pandas import DataFrame, concat, get_dummies
 from sklearn.model_selection import StratifiedShuffleSplit
 
@@ -63,6 +63,21 @@ class IndependentPropertyGenerator(Generator):
         data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples),
                          columns=['label', 'f1', 'f2', 'f3', 'f4'], dtype=float32)
         data['label'] = (data['label'] > 0).astype('int32')
+
+        return data
+
+
+class ProbitGenerator(Generator):
+    """Generator sampling from a probit model of which variance depends on the sensitive attribute."""
+
+    def sample(self, label, adv=False):
+        beta = array([-1., 1., -0.5, 0.5])
+        x = multivariate_normal(zeros(4), eye(4), size=self.num_samples)
+        y = x @ beta + normal(0., 1.1+label, size=self.num_samples) + 0.5
+
+        data = DataFrame(data=x,
+                         columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
+        data['label'] = (y > 0).astype('int32')
 
         return data
 

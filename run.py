@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 import hydra
 
 from propinfer import Experiment
-from propinfer import GaussianGenerator, IndependentPropertyGenerator
+from propinfer import GaussianGenerator, IndependentPropertyGenerator, ProbitGenerator
 from propinfer import LogReg, MLP
 
 CWD = path.dirname(__file__)
@@ -19,7 +19,8 @@ MODELS = {
 
 GENERATORS = {
     'GaussianGenerator': GaussianGenerator,
-    'IndependentPropertyGenerator': IndependentPropertyGenerator
+    'IndependentPropertyGenerator': IndependentPropertyGenerator,
+    'ProbitGenerator': ProbitGenerator
 }
 
 from os import path, mkdir

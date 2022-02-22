@@ -261,7 +261,7 @@ class Experiment:
         wd = hyperparams['weight_decay'] if 'weight_decay' in hyperparams.keys() else 1e-4
 
         meta_classifier = DeepSets(self.shadow_models[0].parameters(), latent_dim=latent_dim,
-                                   epochs=epochs, lr=lr, wd=wd)
+                                   epochs=epochs, lr=lr, wd=wd, n_classes=self.n_classes)
 
         train = [s.parameters() for s in self.shadow_models]
         test = [t.parameters() for t in self.targets]

@@ -125,4 +125,4 @@ class TestExperiment(TestCase):
         self.exp.run_targets()
         self.exp.run_shadows(LogReg, {'max_iter': 100})
 
-        assert self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS) > 0.5
+        assert self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS) > 0.25

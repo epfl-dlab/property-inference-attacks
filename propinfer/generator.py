@@ -82,6 +82,24 @@ class ProbitGenerator(Generator):
         return data
 
 
+class NonlinearGenerator(Generator):
+    """Generator sampling from non-linear combinations of the features with added white gaussian noise.
+
+    Sensitive attribute changes the factor used for some of the features."""
+
+    def sample(self, label, adv=False):
+        beta = array([1.*label, 1.*(1. - label), 1., 1.])
+        x = multivariate_normal(zeros(4), eye(4), size=self.num_samples)
+        epsilon = normal(0., 1., size=self.num_samples) + 0.5
+
+        data = DataFrame(data=x,
+                         columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
+        data['label'] = np.arctan(beta[0] * data['f1']) + np.sin(beta[1] * data['f2']) + \
+                        np.power(beta[2] * data['f3'], 3) + np.tanh(beta[3] * data['f4']) + epsilon
+        data['label'] = (data['label'] > 0).astype('int32')
+
+        return data
+
 class SubsamplingGenerator(Generator):
     def __init__(self, data, label_col, sensitive_attribute, target_category=None,
                  num_samples=1024, proportion=0.5, split=False):

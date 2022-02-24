@@ -178,8 +178,11 @@ class SubsamplingGenerator(Generator):
         n = int(self.num_samples * prop)
         if n > 0:
             sss = StratifiedShuffleSplit(train_size=n)
-            idx, _ = next(sss.split(data[pos], data[pos][[self.label_col, 'attr']]))
-            pos_df = data[pos].iloc[idx]
+            try:
+                idx, _ = next(sss.split(data[pos], data[pos][[self.label_col, 'attr']]))
+                pos_df = data[pos].iloc[idx]
+            except ValueError:
+                pos_df = data[pos].sample(n)
         else:
             pos_df = None
 
@@ -187,8 +190,11 @@ class SubsamplingGenerator(Generator):
         n = self.num_samples - int(self.num_samples * prop)
         if n > 0:
             sss = StratifiedShuffleSplit(train_size=n)
-            idx, _ = next(sss.split(data[~pos], data[~pos][[self.label_col, 'attr']]))
-            neg_df = data[~pos].iloc[idx]
+            try:
+                idx, _ = next(sss.split(data[~pos], data[~pos][[self.label_col, 'attr']]))
+                neg_df = data[~pos].iloc[idx]
+            except ValueError:
+                neg_df = data[~pos].sample(n)
         else:
             neg_df = None
 

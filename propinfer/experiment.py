@@ -7,6 +7,7 @@ from sklearn.metrics import accuracy_score, mean_absolute_error
 from sklearn.model_selection import StratifiedShuffleSplit
 from omegaconf import DictConfig
 from itertools import product
+from random import sample
 
 from propinfer.generator import Generator
 from propinfer.model import Model
@@ -188,9 +189,15 @@ class Experiment:
 
         accs = []
 
-        for idx, _ in sss.split(shadow_models, shadow_labels):
-            self.shadow_models, self.shadow_labels = shadow_models[idx], shadow_labels[idx]
-            accs.append(func(*args))
+        if self.n_classes > 1:
+            for idx, _ in sss.split(shadow_models, shadow_labels):
+                self.shadow_models, self.shadow_labels = shadow_models[idx], shadow_labels[idx]
+                accs.append(func(*args))
+        else:
+            for _ in range(n):
+                idx = sample(range(self.n_shadows), self.n_shadows//2)
+                self.shadow_models, self.shadow_labels = shadow_models[idx], shadow_labels[idx]
+                accs.append(func(*args))
 
         self.shadow_models, self.shadow_labels = shadow_models, shadow_labels
 

@@ -126,3 +126,21 @@ class TestExperiment(TestCase):
         self.exp.run_shadows(LogReg, {'max_iter': 100})
 
         assert self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS) > 0.25
+
+    def test_multiple_regression(self):
+        self.exp = Experiment(self.gen, 'label', self.model, self.num_targets, self.num_shadows, {'max_iter': 100},
+                              n_classes=1, range=(-1., 1.))
+
+        self.exp.run_targets()
+        self.exp.run_shadows(LogReg, {'max_iter': 100})
+
+        assert len(self.exp.run_whitebox_sort(n_outputs=2)) == 2
+
+    def test_multiple_multiclass(self):
+        self.exp = Experiment(self.gen, 'label', self.model, self.num_targets, self.num_shadows, {'max_iter': 100},
+                              n_classes=3)
+
+        self.exp.run_targets()
+        self.exp.run_shadows(LogReg, {'max_iter': 100})
+
+        assert len(self.exp.run_whitebox_sort(n_outputs=2)) == 2

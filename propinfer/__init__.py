@@ -10,7 +10,8 @@ Logging is available for this framework, using logger `propinfer`.
 import logging
 
 from propinfer.experiment import Experiment
-from propinfer.generator import Generator, GaussianGenerator, IndependentPropertyGenerator, SubsamplingGenerator
+from propinfer.generator import Generator, GaussianGenerator, IndependentPropertyGenerator, ProbitGenerator, \
+    NonlinearGenerator, SubsamplingGenerator
 from propinfer.model import Model, LogReg, MLP
 
 logging.getLogger('propinfer').addHandler(logging.NullHandler())

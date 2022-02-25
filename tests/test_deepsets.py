@@ -2,7 +2,6 @@ from unittest import TestCase
 
 from propinfer.deepsets import DeepSets
 from propinfer import MLP
-from propinfer import GaussianGenerator
 
 from numpy import array
 

@@ -1,6 +1,7 @@
 from unittest import TestCase
 
-from propinfer import SubsamplingGenerator
+from propinfer import Generator, GaussianGenerator, ProbitGenerator, IndependentPropertyGenerator, \
+    NonlinearGenerator, SubsamplingGenerator
 from numpy import stack, sum, int32
 from numpy.random import randint
 from pandas import DataFrame
@@ -69,3 +70,19 @@ class TestExperiment(TestCase):
 
         sample = gen.sample(1.)
         assert 0.99 < sum(sample['Quad_1']) / len(sample)
+
+    def test_generator(self):
+        gen = Generator()
+        self.assertRaises(NotImplementedError, gen.sample, 0)
+
+        gen = GaussianGenerator()
+        assert gen.sample(0).mean()[1] < 0.1
+
+        gen = IndependentPropertyGenerator()
+        assert gen.sample(0).mean()[1] < 0.1
+
+        gen = ProbitGenerator()
+        assert gen.sample(0).mean()[1] < 0.1
+
+        gen = NonlinearGenerator()
+        assert gen.sample(0).mean()[1] < 0.1

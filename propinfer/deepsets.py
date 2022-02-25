@@ -12,7 +12,7 @@ __pdoc__ = {
 
 
 class DeepSets(nn.Module):
-    def __init__(self, param, latent_dim, epochs, lr, wd, dropout=0.5, bs=32):
+    def __init__(self, param, latent_dim, epochs, lr, wd, dropout=0.5, bs=32, n_classes=2):
         super().__init__()
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -45,13 +45,14 @@ class DeepSets(nn.Module):
 
         dim = len(param) * latent_dim
         self.classifier = nn.Sequential(
-            nn.Linear(dim, 2)
+            nn.Linear(dim, n_classes)
         ).to(self.device)
 
         self.epochs = epochs
         self.lr = lr
         self.wd = wd
         self.bs = bs
+        self.n_classes = n_classes
 
     def forward(self, X):
         offset = 0
@@ -72,7 +73,8 @@ class DeepSets(nn.Module):
             l.append(n.sum(axis=1))
 
         x = torch.cat(l, dim=1)
-        return self.classifier(x)
+        x = self.classifier(x)
+        return x if self.n_classes > 1 else x.flatten()
 
     def parameters(self, recurse: bool = True):
         params = list(self.classifier.parameters())
@@ -97,11 +99,12 @@ class DeepSets(nn.Module):
         return torch.cat(tensors, dim=0)
 
     def fit(self, parameters, labels):
+        y_true_dtype = torch.int64 if self.n_classes > 1 else torch.float32
         ds = TensorDataset(self.__transform(parameters),
-                           torch.tensor(labels, dtype=torch.int64, device=self.device))
+                           torch.tensor(labels, dtype=y_true_dtype, device=self.device))
         loader = DataLoader(ds, batch_size=self.bs, shuffle=True)
         opt = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.wd)
-        criterion = torch.nn.CrossEntropyLoss()
+        criterion = torch.nn.CrossEntropyLoss() if self.n_classes > 1 else torch.nn.MSELoss()
         for e in range(self.epochs):
             tot_loss = 0
             for X, y_true in loader:
@@ -122,7 +125,12 @@ class DeepSets(nn.Module):
         loader = DataLoader(self.__transform(parameters), batch_size=self.bs, shuffle=False)
 
         predictions = list()
-        for X in loader:
-            predictions.append(self.forward(X).detach().argmax(dim=1).cpu().numpy())
+
+        if self.n_classes > 1:
+            for X in loader:
+                predictions.append(self.forward(X).detach().argmax(dim=1).cpu().numpy())
+        else:
+            for X in loader:
+                predictions.append(self.forward(X).detach().cpu().numpy())
 
         return np.concatenate(predictions)

@@ -1,17 +1,15 @@
-n_targets: 256
-n_shadows: 2048
+n_targets: 512
+n_shadows: 4096
 n_queries: 1024
+n_classes: 1
+range: [0., 1.]
 models:
   - LogReg
   - MLP
 generators:
-  - GaussianGenerator
-  - IndependentPropertyGenerator
   - NonlinearGenerator
   - ProbitGenerator
 runs:
-  - LossTest
-  - ThresholdTest
   - Naive
   - Sort
   - DeepSets

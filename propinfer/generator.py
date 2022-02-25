@@ -1,5 +1,6 @@
-from numpy import array, eye, int32, int64, float32
-from numpy.random import multivariate_normal
+import numpy as np
+from numpy import array, eye, zeros, concatenate, int32, int64, float32
+from numpy.random import normal, multivariate_normal
 from pandas import DataFrame, concat, get_dummies
 from sklearn.model_selection import StratifiedShuffleSplit
 
@@ -14,13 +15,13 @@ class Generator:
         assert isinstance(num_samples, int), 'num_samples should be an int, but {} was provided'.format(type(num_samples).__name__)
         self.num_samples = num_samples
 
-    def sample(self, b, adv=False):
+    def sample(self, label, adv=False):
         """Returns a dataset sampled from the data; the boolean b describes whether or not the output dataset should have
         or not the property that is being attacked
 
         Args:
-            b: a boolean describing whether output data should respond to the queried property
-            adv: a boolean describing whether we are using target or adversary data
+            label (int): the label of the class the output dataset should belong to
+            adv (bool): a boolean describing whether we are using target or adversary data
 
         Returns:
             a pandas DataFrame representing our dataset for this experiment
@@ -32,10 +33,9 @@ class GaussianGenerator(Generator):
     """Generator sampling from a multivariate Gaussian Distribution in which features are correlated.
     Label is made categorical by checking whether it is positive or negative."""
 
-    def sample(self, b, adv=False):
+    def sample(self, label, adv=False):
         mean = array([0]*5)
-        if b:
-            mean[4] = 1
+        mean[4] = label
 
         cov = eye(5)
 
@@ -52,10 +52,9 @@ class GaussianGenerator(Generator):
 class IndependentPropertyGenerator(Generator):
     """Generator sampling from a multivariate Gaussian Distribution in which features are not correlated with the label, but are correlated between each other.
     Label is made categorical by checking whether it is positive or negative."""
-    def sample(self, b, adv=False):
+    def sample(self, label, adv=False):
         mean = array([0] * 5)
-        if b:
-            mean[4] = 1
+        mean[4] = label
 
         cov = eye(5)
         for i in range(1, 4):
@@ -68,11 +67,47 @@ class IndependentPropertyGenerator(Generator):
         return data
 
 
+class ProbitGenerator(Generator):
+    """Generator sampling from a probit model of which variance depends on the sensitive attribute."""
+
+    def sample(self, label, adv=False):
+        beta = array([-1., 1., -0.5, 0.5])
+        x = multivariate_normal(zeros(4), eye(4), size=self.num_samples)
+        y = x @ beta + normal(0., 1+label, size=self.num_samples) + 0.5
+
+        data = DataFrame(data=x,
+                         columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
+        data['label'] = (y > 0).astype('int32')
+
+        return data
+
+
+class NonlinearGenerator(Generator):
+    """Generator sampling from non-linear combinations of the features with added white gaussian noise.
+
+    Sensitive attribute changes the factor used for some of the features."""
+
+    def sample(self, label, adv=False):
+        beta = array([1.*label, 1.*(1. - label), 1., 1.])
+        x = multivariate_normal(zeros(4), eye(4), size=self.num_samples)
+        epsilon = normal(0., 1., size=self.num_samples) + 0.5
+
+        data = DataFrame(data=x,
+                         columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
+        data['label'] = np.arctan(beta[0] * data['f1']) + np.sin(beta[1] * data['f2']) + \
+                        np.power(beta[2] * data['f3'], 3) + np.tanh(beta[3] * data['f4']) + epsilon
+        data['label'] = (data['label'] > 0).astype('int32')
+
+        return data
+
+
 class SubsamplingGenerator(Generator):
     def __init__(self, data, label_col, sensitive_attribute, target_category=None,
-                 num_samples=1024, proportion=0.5, split=False):
+                 num_samples=1024, proportion=None, split=False, regression=False):
         """Generator subsampling records from a larger dataset.
-        Samples using a specific proportion for label 1, and for proportion of 0.5 for label 0
+
+        Classification case: samples using a specific proportion for label 1, and for proportion of 0.5 for label 0. Only works with boolean labels.
+        Regression mode: samples using a specific given proportion between 0 and 1
 
         Args:
             data (pandas.Dataframe): the larger dataset to subsample from
@@ -80,8 +115,9 @@ class SubsamplingGenerator(Generator):
             sensitive_attribute (str): the attribute which distribution being inferred by the property inference attack; is always considered as categorical
             target_category: if sensitive_attribute is not a binary vector, the category considered in the sensitive attribute
             num_samples (int): the number of records to sample
-            proportion (float): the proportion of the target_category in the datasets subsampled with label 1
+            proportion (float): the proportion of the target_category in the datasets subsampled with label 1 ; ignored in the regression case
             split (bool): whether to split original dataset between target and adversary
+            regression (bool): whether to use the sampler in regression or classification mode
         """
         super().__init__(num_samples)
 
@@ -96,7 +132,7 @@ class SubsamplingGenerator(Generator):
         assert sensitive_attribute in data.columns, 'sensitive_attribute not in data columns'
         self.attr = sensitive_attribute
 
-        assert isinstance(split, bool), 'Given data should be a bool, but is {}'.format(type(split).__name__)
+        assert isinstance(split, bool), 'Split should be a bool, but is {}'.format(type(split).__name__)
         self.split = split
         if split:
             sss = StratifiedShuffleSplit(train_size=0.5)
@@ -116,9 +152,16 @@ class SubsamplingGenerator(Generator):
             self.pos = data[sensitive_attribute] == target_category
             self.data['attr'] = self.data[sensitive_attribute].cat.codes
 
-        self.set_proportion(proportion)
+        assert isinstance(regression, bool), 'Regression should be a bool, but is {}'.format(type(regression).__name__)
+        self.regression = regression
 
-    def sample(self, b, adv=False):
+        if not self.regression:
+            self.set_proportion(proportion)
+
+    def sample(self, label, adv=False):
+        if not self.regression:
+            assert np.isclose(label, 0) or np.isclose(label, 1)
+
         if self.split:
             data = self.data.iloc[self.adv] if adv else self.data.iloc[self.tar]
             pos = self.pos.iloc[self.adv] if adv else self.pos.iloc[self.tar]
@@ -126,19 +169,39 @@ class SubsamplingGenerator(Generator):
             data = self.data
             pos = self.pos
 
-        prop = self.proportion if b else 0.5
+        if self.regression:
+            prop = label
+        else:
+            prop = self.proportion if label else 0.5
 
         # Sampling positive examples
-        sss = StratifiedShuffleSplit(train_size=int(self.num_samples * prop))
-        idx, _ = next(sss.split(data[pos], data[pos][[self.label_col, 'attr']]))
-        pos_df = data[pos].iloc[idx]
+        n = int(self.num_samples * prop)
+        if n > 0:
+            sss = StratifiedShuffleSplit(train_size=n)
+            try:
+                idx, _ = next(sss.split(data[pos], data[pos][[self.label_col, 'attr']]))
+                pos_df = data[pos].iloc[idx]
+            except ValueError:
+                pos_df = data[pos].sample(n)
+        else:
+            pos_df = None
 
         # Sampling negative examples
-        sss = StratifiedShuffleSplit(train_size=self.num_samples - int(self.num_samples * prop))
-        idx, _ = next(sss.split(data[~pos], data[~pos][[self.label_col, 'attr']]))
-        neg_df = data[~pos].iloc[idx]
+        n = self.num_samples - int(self.num_samples * prop)
+        if n > 0:
+            sss = StratifiedShuffleSplit(train_size=n)
+            try:
+                idx, _ = next(sss.split(data[~pos], data[~pos][[self.label_col, 'attr']]))
+                neg_df = data[~pos].iloc[idx]
+            except ValueError:
+                neg_df = data[~pos].sample(n)
+        else:
+            neg_df = None
 
-        out = concat((pos_df, neg_df))
+        if pos_df is not None:
+            out = concat((pos_df, neg_df)) if neg_df is not None else pos_df
+        else:
+            out = neg_df
 
         if not (out.dtypes[self.label_col] == int32 or out.dtypes[self.label_col] == int64):
             out[self.label_col] = out[self.label_col].astype('category').cat.codes

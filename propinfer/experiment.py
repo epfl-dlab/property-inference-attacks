@@ -2,11 +2,12 @@ import pandas as pd
 import numpy as np
 
 from sklearn.linear_model import LogisticRegression
-from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.metrics import accuracy_score, mean_absolute_error
 from sklearn.model_selection import StratifiedShuffleSplit
 from omegaconf import DictConfig
 from itertools import product
+from random import sample
 
 from propinfer.generator import Generator
 from propinfer.model import Model
@@ -18,17 +19,19 @@ logger = logging.getLogger('propinfer')
 
 
 class Experiment:
-    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1024):
+    def __init__(self, generator, label_col,  model, n_targets, n_shadows, hyperparams, n_queries=1024, n_classes=2, range=None):
         """Object representing an experiment, based on its data generator and model pair
 
         Args:
             generator (Generator): data abstraction used for this experiment
             model (Model.__class__): a Model class that represents the model to be used
-            n_targets (int): the number of target pairs used for each experiment
-            n_shadows (int): the number of shadow model pairs run for this experiment
+            n_targets (int): the number of target models of each class
+            n_shadows (int): the number of shadow models of each class
             hyperparams (dict or DictConfig): dictionary containing every useful hyper-parameter for the Model;
                          if a list is provided for some hyperparameter(s), we optimise between all given options (except for keyword `layers`)
             n_queries (int): the number of queries used in the scope of grey- and black-box attacks
+            n_classes (int): the number of classes considered for property inference; if 1 then a regression is performed
+            range (tuple): the range of values accepted for regression tasks (needed for regression, ignored for classification)
         """
 
         assert isinstance(generator, Generator), 'The given generator is not an instance of Generator, but {}'.format(type(generator).__name__)
@@ -57,6 +60,12 @@ class Experiment:
 
         assert isinstance(n_queries, int), 'The given n_queries is not an integer, but is {}'.format(type(n_queries).__name__)
         self.n_queries = n_queries
+
+        assert isinstance(n_classes, int), 'The given n_classes is not an integer, but is {}'.format(type(n_classes).__name__)
+        if n_classes == 1:
+            assert range is not None
+        self.n_classes = n_classes
+        self.range = range
 
         self.targets = None
         self.labels = None
@@ -108,12 +117,18 @@ class Experiment:
 
     def run_targets(self):
         """Create and fit target models """
-        self.labels = np.array([False]*self.n_targets + [True]*self.n_targets, dtype=np.int8)
+        if self.n_classes > 1:
+            self.labels = np.concatenate([[i]*self.n_targets for i in range(self.n_classes)], dtype=np.int8)
+        elif self.n_classes == 1:
+            self.labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_targets)
+        else:
+            raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
+
         self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
-                        [self.generator.sample(b) for b in self.labels]]
+                        [self.generator.sample(label) for label in self.labels]]
 
         scores = [accuracy_score(data[self.label_col], self.targets[i].predict(data)) for i, data in
-                  enumerate([self.generator.sample(b) for b in self.labels])]
+                  enumerate([self.generator.sample(label) for label in self.labels])]
         logger.debug('Target models accuracy - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
             np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
@@ -138,21 +153,28 @@ class Experiment:
             model = self.model
             hyperparams = self.hyperparams
 
-        self.shadow_labels = np.array([False] * self.n_shadows + [True] * self.n_shadows, dtype=np.int8)
+        if self.n_classes > 1:
+            self.shadow_labels = np.concatenate([[i]*self.n_shadows for i in range(self.n_classes)], dtype=np.int8)
+        elif self.n_classes == 1:
+            self.shadow_labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_shadows)
+        else:
+            raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
+
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
-                              [self.generator.sample(b, adv=True) for b in self.shadow_labels]]
+                              [self.generator.sample(label, adv=True) for label in self.shadow_labels]]
 
         scores = [accuracy_score(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
-                      enumerate([self.generator.sample(b, adv=True) for b in self.shadow_labels])]
+                      enumerate([self.generator.sample(label, adv=True) for label in self.shadow_labels])]
         logger.debug('Shadow models accuracy ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
             model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_loss_test(self):
-        """Runs a loss test attack on target models
+        """Runs a loss test attack on target models. Works only for the binary classification task.
 
         Returns: Attack accuracy on target models
         """
         assert self.targets is not None
+        assert self.n_classes == 2
 
         y_true = [False, True]
         X_test = [self.generator.sample(b, adv=True) for b in y_true]
@@ -167,24 +189,31 @@ class Experiment:
 
         accs = []
 
-        for idx, _ in sss.split(shadow_models, shadow_labels):
-            self.shadow_models, self.shadow_labels = shadow_models[idx], shadow_labels[idx]
-            accs.append(func(*args))
+        if self.n_classes > 1:
+            for idx, _ in sss.split(shadow_models, shadow_labels):
+                self.shadow_models, self.shadow_labels = shadow_models[idx], shadow_labels[idx]
+                accs.append(func(*args))
+        else:
+            for _ in range(n):
+                idx = sample(range(self.n_shadows), self.n_shadows//2)
+                self.shadow_models, self.shadow_labels = shadow_models[idx], shadow_labels[idx]
+                accs.append(func(*args))
 
         self.shadow_models, self.shadow_labels = shadow_models, shadow_labels
 
         return accs
 
     def run_threshold_test(self, n_outputs=1):
-        """Runs a threshold test attack on target models
+        """Runs a threshold test attack on target models. Works only for the binary classification task.
 
         Args:
             n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
 
-        Returns: Attack accuracy on target models
+        Returns: Attack accuracy on target models for the classification task, or mean absolute error for the regression task
         """
         assert self.targets is not None
         assert self.shadow_models is not None
+        assert self.n_classes == 2
 
         if n_outputs > 1:
             return self.__run_multiple(n_outputs, self.run_threshold_test)
@@ -239,7 +268,7 @@ class Experiment:
         wd = hyperparams['weight_decay'] if 'weight_decay' in hyperparams.keys() else 1e-4
 
         meta_classifier = DeepSets(self.shadow_models[0].parameters(), latent_dim=latent_dim,
-                                   epochs=epochs, lr=lr, wd=wd)
+                                   epochs=epochs, lr=lr, wd=wd, n_classes=self.n_classes)
 
         train = [s.parameters() for s in self.shadow_models]
         test = [t.parameters() for t in self.targets]
@@ -249,7 +278,7 @@ class Experiment:
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred)
+        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)
 
     def run_whitebox_sort(self, sort=True, n_outputs=1):
         """Runs a whitebox attack on the target models, by using the model parameters as features for a meta-classifier
@@ -258,7 +287,7 @@ class Experiment:
             sort (bool): whether to perform node sorting (to be used for permutation-invariant DNN)
             n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
 
-        Returns: Attack accuracy on target models
+        Returns: Attack accuracy on target models for the classification task, or mean absolute error for the regression task
         """
         assert self.targets is not None
         assert self.shadow_models is not None
@@ -272,14 +301,15 @@ class Experiment:
         test = pd.DataFrame(data=[transform_parameters(t.parameters(), sort=sort)
                                   for t in self.targets])
 
-        meta_classifier = MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True)
+        meta_classifier = MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True) \
+            if self.n_classes > 1 else MLPRegressor(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True)
 
         meta_classifier.fit(train, self.shadow_labels)
         y_pred = meta_classifier.predict(test)
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred)
+        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)
 
     def run_blackbox(self, n_outputs=1):
         """Runs a blackbox attack on the target models, by using the result of random queries as features for a meta-classifier
@@ -287,7 +317,7 @@ class Experiment:
         Args:
             n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
 
-        Returns: Attack accuracy on target models
+        Returns: Attack accuracy on target models for the classification task, or mean absolute error for the regression task
         """
         assert self.targets is not None
         assert self.shadow_models is not None
@@ -295,10 +325,24 @@ class Experiment:
         if n_outputs > 1:
             return self.__run_multiple(n_outputs, self.run_blackbox)
 
-        meta_classifier = LogisticRegression(max_iter=4096)
+        meta_classifier = MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True) \
+            if self.n_classes > 1 else MLPRegressor(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True)
 
-        queries = pd.concat([self.generator.sample(True, adv=True),
-                             self.generator.sample(False, adv=True)]).sample(self.n_queries)
+        sample_len = len(self.generator.sample(0, adv=True))
+
+        if self.n_classes > 1:
+            queries = pd.concat([self.generator.sample(i, adv=True) for i in range(self.n_classes)])
+            labels = np.concatenate([[i]*sample_len for i in range(self.n_classes)])
+        elif self.n_classes == 1:
+            labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/10)
+            queries = pd.concat([self.generator.sample(i, adv=True) for i in labels])
+            labels = np.concatenate([[l]*sample_len for l in labels])
+        else:
+            raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
+
+        sss = StratifiedShuffleSplit(n_splits=1, train_size=self.n_queries)
+        idx, _ = list(sss.split(queries, labels))[0]
+        queries = queries.iloc[idx]
 
         train = pd.DataFrame(data=[s.predict(queries).flatten() for s in self.shadow_models])
         test  = pd.DataFrame(data=[s.predict(queries).flatten() for s in self.targets])
@@ -308,4 +352,4 @@ class Experiment:
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred)
+        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)

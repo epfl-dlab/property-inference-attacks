@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 import hydra
 
 from propinfer import Experiment
-from propinfer import GaussianGenerator, IndependentPropertyGenerator
+from propinfer import GaussianGenerator, IndependentPropertyGenerator, ProbitGenerator, NonlinearGenerator
 from propinfer import LogReg, MLP
 
 CWD = path.dirname(__file__)
@@ -19,7 +19,9 @@ MODELS = {
 
 GENERATORS = {
     'GaussianGenerator': GaussianGenerator,
-    'IndependentPropertyGenerator': IndependentPropertyGenerator
+    'IndependentPropertyGenerator': IndependentPropertyGenerator,
+    'ProbitGenerator': ProbitGenerator,
+    'NonlinearGenerator': NonlinearGenerator
 }
 
 from os import path, mkdir
@@ -32,8 +34,7 @@ config = path.abspath(path.join(path.dirname(__file__), 'logging.ini'))
 logdir = path.abspath(path.join(path.dirname(__file__),"./logs"))
 if not path.isdir(logdir):
     mkdir(logdir)
-logfile = logdir + '/logs_property-inference-framework_' + TIMESTAMP
-
+logfile = logdir + '/logs_property-inference-attacks_' + TIMESTAMP + '.txt'
 
 logging.config.fileConfig(config, defaults={'logfilename': logfile})
 
@@ -47,8 +48,10 @@ def main(cfg: DictConfig):
     for gen in cfg.experiments.generators:
         generator = GENERATORS[gen](num_samples=cfg.generators.num_samples)
         for model in cfg.experiments.models:
+            n_classes = cfg.experiments.n_classes if 'n_classes' in cfg.experiments.keys() else 2
+            exp_range = None if n_classes > 1 else cfg.experiments.range
             experiment = Experiment(generator, cfg.generators.label_col, MODELS[model], cfg.experiments.n_targets, cfg.experiments.n_shadows,
-                                    cfg.models[model], cfg.experiments.n_queries)
+                                    cfg.models[model], cfg.experiments.n_queries, n_classes=n_classes, range=exp_range)
 
             logger.info('Training target models: {} - {}'.format(gen, model))
             experiment.run_targets()
@@ -83,7 +86,10 @@ def main(cfg: DictConfig):
                     raise AttributeError('Invalid run provided: should be Naive, Sort, DeepSets, GreyBox or BlackBox'
                                          ' - instead is {}'.format(run))
 
-                logger.info('Result for {}: {:.2%}'.format(name, experiments[name]))
+                if n_classes > 1:
+                    logger.info('Attack accuracy for {}: {:.2%}'.format(name, experiments[name]))
+                else:
+                    logger.info('Mean absolute error for {}: {:.2f}'.format(name, experiments[name]))
 
     # Output results
     outfile_name = 'results_PIA_' + TIMESTAMP + '.json'

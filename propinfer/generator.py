@@ -20,8 +20,8 @@ class Generator:
         or not the property that is being attacked
 
         Args:
-            label (int): the label of the class the output dataset should belong to
-            adv (bool): a boolean describing whether we are using target or adversary data
+            label (int or float): the label that corresponds to the dataset being queried
+            adv (bool): a boolean describing whether we are using target or adversary data split
 
         Returns:
             a pandas DataFrame representing our dataset for this experiment
@@ -31,10 +31,11 @@ class Generator:
 
 class GaussianGenerator(Generator):
     """Generator sampling from a multivariate Gaussian Distribution in which features are correlated.
-    Label is made categorical by checking whether it is positive or negative."""
+    Label is made categorical by checking whether it is positive or negative.
+    Sensitive attribute is the mean of the fourth feature vector"""
 
     def sample(self, label, adv=False):
-        mean = array([0]*5)
+        mean = array([0.]*5)
         mean[4] = label
 
         cov = eye(5)
@@ -51,9 +52,10 @@ class GaussianGenerator(Generator):
 
 class IndependentPropertyGenerator(Generator):
     """Generator sampling from a multivariate Gaussian Distribution in which features are not correlated with the label, but are correlated between each other.
-    Label is made categorical by checking whether it is positive or negative."""
+    Label is made categorical by checking whether it is positive or negative.
+    Sensitive attribute is the mean of the fourth feature vector"""
     def sample(self, label, adv=False):
-        mean = array([0] * 5)
+        mean = array([0.] * 5)
         mean[4] = label
 
         cov = eye(5)

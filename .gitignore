@@ -8,3 +8,4 @@ local
 
 *.pyc
 .DS_Store
+*.ipynb

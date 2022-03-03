@@ -25,10 +25,10 @@ class Experiment:
         Args:
             generator (Generator): data abstraction used for this experiment
             model (Model.__class__): a Model class that represents the model to be used
-            n_targets (int): the number of target models of each class
-            n_shadows (int): the number of shadow models of each class
+            n_targets (int): the total number of target models
+            n_shadows (int): the total number of shadow models
             hyperparams (dict or DictConfig): dictionary containing every useful hyper-parameter for the Model;
-                         if a list is provided for some hyperparameter(s), we optimise between all given options (except for keyword `layers`)
+                         if a list is provided for some hyperparameter(s), we grid optimise between all given options (except for keyword `layers`)
             n_queries (int): the number of queries used in the scope of grey- and black-box attacks
             n_classes (int): the number of classes considered for property inference; if 1 then a regression is performed
             range (tuple): the range of values accepted for regression tasks (needed for regression, ignored for classification)
@@ -118,7 +118,12 @@ class Experiment:
     def run_targets(self):
         """Create and fit target models """
         if self.n_classes > 1:
-            self.labels = np.concatenate([[i]*self.n_targets for i in range(self.n_classes)], dtype=np.int8)
+            self.labels = np.concatenate([[i]*(self.n_targets//self.n_classes) for i in range(self.n_classes)],
+                                         dtype=np.int8)
+            if self.n_targets % self.n_classes > 0:
+                self.labels = np.concatenate((self.labels,
+                                             np.random.randint(0, self.n_classes, self.n_targets % self.n_classes)),
+                                             dtype=np.int8)
         elif self.n_classes == 1:
             self.labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_targets)
         else:
@@ -154,7 +159,12 @@ class Experiment:
             hyperparams = self.hyperparams
 
         if self.n_classes > 1:
-            self.shadow_labels = np.concatenate([[i]*self.n_shadows for i in range(self.n_classes)], dtype=np.int8)
+            self.shadow_labels = np.concatenate([[i]*(self.n_shadows//self.n_classes) for i in range(self.n_classes)],
+                                                dtype=np.int8)
+            if self.n_shadows % self.n_classes > 0:
+                self.shadow_labels = np.concatenate((self.shadow_labels,
+                                                    np.random.randint(0, self.n_classes, self.n_shadows % self.n_classes)),
+                                                    dtype=np.int8)
         elif self.n_classes == 1:
             self.shadow_labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_shadows)
         else:
@@ -209,7 +219,7 @@ class Experiment:
         Args:
             n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
 
-        Returns: Attack accuracy on target models for the classification task, or mean absolute error for the regression task
+        Returns: Attack accuracy on target models
         """
         assert self.targets is not None
         assert self.shadow_models is not None

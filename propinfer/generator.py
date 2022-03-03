@@ -5,8 +5,10 @@ from pandas import DataFrame, concat, get_dummies
 from sklearn.model_selection import StratifiedShuffleSplit
 
 __pdoc__ = {
-    'multivariate_normal': False
+    'multivariate_normal': False,
+    'normal': False
 }
+
 
 class Generator:
     """An abstraction class used to query for data"""

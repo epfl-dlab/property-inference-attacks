@@ -34,7 +34,7 @@
 <dl>
 <dt id="propinfer.experiment.Experiment"><code class="flex name class">
 <span>class <span class="ident">Experiment</span></span>
-<span>(</span><span>generator, label_col, model, n_targets, n_shadows, hyperparams, n_queries=1024)</span>
+<span>(</span><span>generator, label_col, model, n_targets, n_shadows, hyperparams, n_queries=1024, n_classes=2, range=None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Object representing an experiment, based on its data generator and model pair</p>
@@ -45,14 +45,18 @@
 <dt><strong><code>model</code></strong> :&ensp;<code>Model.__class__</code></dt>
 <dd>a Model class that represents the model to be used</dd>
 <dt><strong><code>n_targets</code></strong> :&ensp;<code>int</code></dt>
-<dd>the number of target pairs used for each experiment</dd>
+<dd>the total number of target models</dd>
 <dt><strong><code>n_shadows</code></strong> :&ensp;<code>int</code></dt>
-<dd>the number of shadow model pairs run for this experiment</dd>
+<dd>the total number of shadow models</dd>
 <dt><strong><code>hyperparams</code></strong> :&ensp;<code>dict</code> or <code>DictConfig</code></dt>
 <dd>dictionary containing every useful hyper-parameter for the Model;
-if a list is provided for some hyperparameter(s), we optimise between all given options (except for keyword <code>layers</code>)</dd>
+if a list is provided for some hyperparameter(s), we grid optimise between all given options (except for keyword <code>layers</code>)</dd>
 <dt><strong><code>n_queries</code></strong> :&ensp;<code>int</code></dt>
 <dd>the number of queries used in the scope of grey- and black-box attacks</dd>
+<dt><strong><code>n_classes</code></strong> :&ensp;<code>int</code></dt>
+<dd>the number of classes considered for property inference; if 1 then a regression is performed</dd>
+<dt><strong><code>range</code></strong> :&ensp;<code>tuple</code></dt>
+<dd>the range of values accepted for regression tasks (needed for regression, ignored for classification)</dd>
 </dl></div>
 <h3>Methods</h3>
 <dl>
@@ -66,13 +70,13 @@ if a list is provided for some hyperparameter(s), we optimise between all given 
 <dt><strong><code>n_outputs</code></strong> :&ensp;<code>int</code></dt>
 <dd>number of attack results to output, using multiple random subsets of the shadow models</dd>
 </dl>
-<p>Returns: Attack accuracy on target models</p></div>
+<p>Returns: Attack accuracy on target models for the classification task, or mean absolute error for the regression task</p></div>
 </dd>
 <dt id="propinfer.experiment.Experiment.run_loss_test"><code class="name flex">
 <span>def <span class="ident">run_loss_test</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Runs a loss test attack on target models</p>
+<div class="desc"><p>Runs a loss test attack on target models. Works only for the binary classification task.</p>
 <p>Returns: Attack accuracy on target models</p></div>
 </dd>
 <dt id="propinfer.experiment.Experiment.run_shadows"><code class="name flex">
@@ -99,7 +103,7 @@ Hyperparameters of shadow models will NOT be optimised. If None, will be the sam
 <span>def <span class="ident">run_threshold_test</span></span>(<span>self, n_outputs=1)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Runs a threshold test attack on target models</p>
+<div class="desc"><p>Runs a threshold test attack on target models. Works only for the binary classification task.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>n_outputs</code></strong> :&ensp;<code>int</code></dt>
@@ -134,7 +138,7 @@ Accepted keywords are: latent_dim (default=5); epochs (default=20); learning_rat
 <dt><strong><code>n_outputs</code></strong> :&ensp;<code>int</code></dt>
 <dd>number of attack results to output, using multiple random subsets of the shadow models</dd>
 </dl>
-<p>Returns: Attack accuracy on target models</p></div>
+<p>Returns: Attack accuracy on target models for the classification task, or mean absolute error for the regression task</p></div>
 </dd>
 </dl>
 </dd>

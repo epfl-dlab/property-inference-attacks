@@ -38,7 +38,8 @@
 </code></dt>
 <dd>
 <div class="desc"><p>Generator sampling from a multivariate Gaussian Distribution in which features are correlated.
-Label is made categorical by checking whether it is positive or negative.</p></div>
+Label is made categorical by checking whether it is positive or negative.
+Sensitive attribute is the mean of the fourth feature vector</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="propinfer.generator.Generator" href="#propinfer.generator.Generator">Generator</a></li>
@@ -62,22 +63,24 @@ Label is made categorical by checking whether it is positive or negative.</p></d
 <ul class="hlist">
 <li><a title="propinfer.generator.GaussianGenerator" href="#propinfer.generator.GaussianGenerator">GaussianGenerator</a></li>
 <li><a title="propinfer.generator.IndependentPropertyGenerator" href="#propinfer.generator.IndependentPropertyGenerator">IndependentPropertyGenerator</a></li>
+<li><a title="propinfer.generator.NonlinearGenerator" href="#propinfer.generator.NonlinearGenerator">NonlinearGenerator</a></li>
+<li><a title="propinfer.generator.ProbitGenerator" href="#propinfer.generator.ProbitGenerator">ProbitGenerator</a></li>
 <li><a title="propinfer.generator.SubsamplingGenerator" href="#propinfer.generator.SubsamplingGenerator">SubsamplingGenerator</a></li>
 </ul>
 <h3>Methods</h3>
 <dl>
 <dt id="propinfer.generator.Generator.sample"><code class="name flex">
-<span>def <span class="ident">sample</span></span>(<span>self, b, adv=False)</span>
+<span>def <span class="ident">sample</span></span>(<span>self, label, adv=False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Returns a dataset sampled from the data; the boolean b describes whether or not the output dataset should have
 or not the property that is being attacked</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>b</code></strong></dt>
-<dd>a boolean describing whether output data should respond to the queried property</dd>
-<dt><strong><code>adv</code></strong></dt>
-<dd>a boolean describing whether we are using target or adversary data</dd>
+<dt><strong><code>label</code></strong> :&ensp;<code>int</code> or <code>float</code></dt>
+<dd>the label that corresponds to the dataset being queried</dd>
+<dt><strong><code>adv</code></strong> :&ensp;<code>bool</code></dt>
+<dd>a boolean describing whether we are using target or adversary data split</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>a pandas DataFrame representing our dataset for this experiment</p></div>
@@ -90,7 +93,47 @@ or not the property that is being attacked</p>
 </code></dt>
 <dd>
 <div class="desc"><p>Generator sampling from a multivariate Gaussian Distribution in which features are not correlated with the label, but are correlated between each other.
-Label is made categorical by checking whether it is positive or negative.</p></div>
+Label is made categorical by checking whether it is positive or negative.
+Sensitive attribute is the mean of the fourth feature vector</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="propinfer.generator.Generator" href="#propinfer.generator.Generator">Generator</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="propinfer.generator.Generator" href="#propinfer.generator.Generator">Generator</a></b></code>:
+<ul class="hlist">
+<li><code><a title="propinfer.generator.Generator.sample" href="#propinfer.generator.Generator.sample">sample</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="propinfer.generator.NonlinearGenerator"><code class="flex name class">
+<span>class <span class="ident">NonlinearGenerator</span></span>
+<span>(</span><span>num_samples=1024)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Generator sampling from non-linear combinations of the features with added white gaussian noise.</p>
+<p>Sensitive attribute changes the factor used for some of the features.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="propinfer.generator.Generator" href="#propinfer.generator.Generator">Generator</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="propinfer.generator.Generator" href="#propinfer.generator.Generator">Generator</a></b></code>:
+<ul class="hlist">
+<li><code><a title="propinfer.generator.Generator.sample" href="#propinfer.generator.Generator.sample">sample</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="propinfer.generator.ProbitGenerator"><code class="flex name class">
+<span>class <span class="ident">ProbitGenerator</span></span>
+<span>(</span><span>num_samples=1024)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Generator sampling from a probit model of which variance depends on the sensitive attribute.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="propinfer.generator.Generator" href="#propinfer.generator.Generator">Generator</a></li>
@@ -106,12 +149,13 @@ Label is made categorical by checking whether it is positive or negative.</p></d
 </dd>
 <dt id="propinfer.generator.SubsamplingGenerator"><code class="flex name class">
 <span>class <span class="ident">SubsamplingGenerator</span></span>
-<span>(</span><span>data, label_col, sensitive_attribute, target_category=None, num_samples=1024, proportion=0.5, split=False)</span>
+<span>(</span><span>data, label_col, sensitive_attribute, target_category=None, num_samples=1024, proportion=None, split=False, regression=False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>An abstraction class used to query for data</p>
-<p>Generator subsampling records from a larger dataset.
-Samples using a specific proportion for label 1, and for proportion of 0.5 for label 0</p>
+<p>Generator subsampling records from a larger dataset.</p>
+<p>Classification case: samples using a specific proportion for label 1, and for proportion of 0.5 for label 0. Only works with boolean labels.
+Regression mode: samples using a specific given proportion between 0 and 1</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>data</code></strong> :&ensp;<code>pandas.Dataframe</code></dt>
@@ -125,9 +169,11 @@ Samples using a specific proportion for label 1, and for proportion of 0.5 for l
 <dt><strong><code>num_samples</code></strong> :&ensp;<code>int</code></dt>
 <dd>the number of records to sample</dd>
 <dt><strong><code>proportion</code></strong> :&ensp;<code>float</code></dt>
-<dd>the proportion of the target_category in the datasets subsampled with label 1</dd>
+<dd>the proportion of the target_category in the datasets subsampled with label 1 ; ignored in the regression case</dd>
 <dt><strong><code>split</code></strong> :&ensp;<code>bool</code></dt>
 <dd>whether to split original dataset between target and adversary</dd>
+<dt><strong><code>regression</code></strong> :&ensp;<code>bool</code></dt>
+<dd>whether to use the sampler in regression or classification mode</dd>
 </dl></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -183,6 +229,12 @@ Samples using a specific proportion for label 1, and for proportion of 0.5 for l
 </li>
 <li>
 <h4><code><a title="propinfer.generator.IndependentPropertyGenerator" href="#propinfer.generator.IndependentPropertyGenerator">IndependentPropertyGenerator</a></code></h4>
+</li>
+<li>
+<h4><code><a title="propinfer.generator.NonlinearGenerator" href="#propinfer.generator.NonlinearGenerator">NonlinearGenerator</a></code></h4>
+</li>
+<li>
+<h4><code><a title="propinfer.generator.ProbitGenerator" href="#propinfer.generator.ProbitGenerator">ProbitGenerator</a></code></h4>
 </li>
 <li>
 <h4><code><a title="propinfer.generator.SubsamplingGenerator" href="#propinfer.generator.SubsamplingGenerator">SubsamplingGenerator</a></code></h4>

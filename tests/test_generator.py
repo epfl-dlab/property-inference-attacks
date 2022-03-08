@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from propinfer import Generator, GaussianGenerator, ProbitGenerator, IndependentPropertyGenerator, \
-    NonlinearGenerator, SubsamplingGenerator
+    NonlinearGenerator, SubsamplingGenerator, MultilabelProbitGenerator
 from numpy import stack, sum, int32
 from numpy.random import randint
 from pandas import DataFrame
@@ -86,3 +86,11 @@ class TestExperiment(TestCase):
 
         gen = NonlinearGenerator()
         assert gen.sample(0).mean()[1] < 0.1
+
+    def test_multilabel_probit_generator(self):
+        gen = MultilabelProbitGenerator()
+        assert gen.sample((0., 1.)).mean()['f1'] < 0.1
+        assert gen.sample((0., 1.)).var()['f1'] > 2.
+
+        assert gen.sample((1., 0.)).mean()['f1'] > 0.9
+        assert gen.sample((1., 0.)).var()['f1'] < 1.5

@@ -64,6 +64,8 @@ class Experiment:
         assert isinstance(n_classes, int), 'The given n_classes is not an integer, but is {}'.format(type(n_classes).__name__)
         if n_classes == 1:
             assert range is not None
+            assert hasattr(range, '__getitem__')
+
         self.n_classes = n_classes
         self.range = range
 
@@ -125,7 +127,11 @@ class Experiment:
                                              np.random.randint(0, self.n_classes, self.n_targets % self.n_classes)),
                                              dtype=np.int8)
         elif self.n_classes == 1:
-            self.labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_targets)
+            if hasattr(self.range[0], '__getitem__'):
+                bounds = np.array(self.range)
+                self.labels = np.random.uniform(bounds[:, 0], bounds[:, 1], (self.n_targets, len(self.range)))
+            else:
+                self.labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_targets)
         else:
             raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
 
@@ -166,7 +172,11 @@ class Experiment:
                                                     np.random.randint(0, self.n_classes, self.n_shadows % self.n_classes)),
                                                     dtype=np.int8)
         elif self.n_classes == 1:
-            self.shadow_labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_shadows)
+            if hasattr(self.range[0], '__getitem__'):
+                bounds = np.array(self.range)
+                self.shadow_labels = np.random.uniform(bounds[:, 0], bounds[:, 1], (self.n_shadows, len(self.range)))
+            else:
+                self.shadow_labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_shadows)
         else:
             raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
 
@@ -250,6 +260,15 @@ class Experiment:
         y_pred = [higher_acc if acc > thr else not higher_acc for acc in accuracy]
         return accuracy_score(self.labels, y_pred)
 
+    def __get_score(self, y_pred):
+        if self.n_classes > 1:
+            return accuracy_score(self.labels, y_pred)
+        else:
+            if len(y_pred.shape) == 1:
+                return mean_absolute_error(self.labels, y_pred)
+            else:
+                return [mean_absolute_error(self.labels[:, i], y_pred[:, i]) for i in range(y_pred.shape[1])]
+
     def run_whitebox_deepsets(self, hyperparams, n_outputs=1):
         """Runs a whitebox attack on the target models using a DeepSets meta-classifier
 
@@ -319,7 +338,7 @@ class Experiment:
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)
+        return self.__get_score(y_pred)
 
     def run_blackbox(self, n_outputs=1):
         """Runs a blackbox attack on the target models, by using the result of random queries as features for a meta-classifier
@@ -338,14 +357,22 @@ class Experiment:
         meta_classifier = MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True) \
             if self.n_classes > 1 else MLPRegressor(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True)
 
-        sample_len = len(self.generator.sample(0, adv=True))
+
 
         if self.n_classes > 1:
             queries = pd.concat([self.generator.sample(i, adv=True) for i in range(self.n_classes)])
+            sample_len = len(self.generator.sample(0, adv=True))
             labels = np.concatenate([[i]*sample_len for i in range(self.n_classes)])
         elif self.n_classes == 1:
-            labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/10)
-            queries = pd.concat([self.generator.sample(i, adv=True) for i in labels])
+            if hasattr(self.range[0], '__getitem__'):
+                bounds = np.array(self.range)
+                labels = np.random.uniform(bounds[:, 0], bounds[:, 1], (10*len(self.range), len(self.range)))
+                sample_len = len(self.generator.sample([0]*len(self.range), adv=True))
+            else:
+                labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/10)
+                sample_len = len(self.generator.sample(0, adv=True))
+
+            queries = pd.concat([self.generator.sample(l, adv=True) for l in labels])
             labels = np.concatenate([[l]*sample_len for l in labels])
         else:
             raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
@@ -362,4 +389,4 @@ class Experiment:
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)
+        return self.__get_score(y_pred)

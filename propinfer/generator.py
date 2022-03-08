@@ -22,7 +22,7 @@ class Generator:
         or not the property that is being attacked
 
         Args:
-            label (int or float): the label that corresponds to the dataset being queried
+            label (int or float or numpy.array): the label that corresponds to the dataset being queried
             adv (bool): a boolean describing whether we are using target or adversary data split
 
         Returns:
@@ -80,6 +80,25 @@ class ProbitGenerator(Generator):
         y = x @ beta + normal(0., 1+label, size=self.num_samples) + 0.5
 
         data = DataFrame(data=x,
+                         columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
+        data['label'] = (y > 0).astype('int32')
+
+        return data
+
+
+class MultilabelProbitGenerator(Generator):
+    """Generator sampling from a probit model of which sensitive attribute are the mean and variance of the covariates"""
+
+    def sample(self, label, adv=False):
+        mean = array([label[0]] * 4)
+        cov = eye(4) + 2 * eye(4) * label[1]
+
+        x = multivariate_normal(mean, cov, size=self.num_samples)
+
+        beta = array([-1., 1., -0.5, 0.5])
+        y = x @ beta + 0.25 + normal(0., 1., size=self.num_samples)
+
+        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples),
                          columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
         data['label'] = (y > 0).astype('int32')
 

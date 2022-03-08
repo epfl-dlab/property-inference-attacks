@@ -1,8 +1,10 @@
 from unittest import TestCase
 
 from propinfer import Experiment
-from propinfer import GaussianGenerator, IndependentPropertyGenerator
+from propinfer import GaussianGenerator, IndependentPropertyGenerator, MultilabelProbitGenerator
 from propinfer import LogReg, MLP
+
+import numpy as np
 
 
 DEFAULT_HYPERPARAMS_MLP = {
@@ -155,3 +157,15 @@ class TestExperiment(TestCase):
         assert len(self.exp.targets) == 10
         assert len(self.exp.shadow_labels) == 13
         assert len(self.exp.shadow_models) == 13
+
+    def test_multivariable_regression(self):
+        gen = MultilabelProbitGenerator()
+        self.exp = Experiment(gen, 'label', self.model, self.num_targets, self.num_shadows, {'max_iter': 100},
+                              n_classes=1, range=np.array(((0., 1.), (0., 1.))))
+
+        self.exp.run_targets()
+        self.exp.run_shadows()
+
+        assert len(self.exp.run_whitebox_sort()) == 2
+        assert len(self.exp.run_blackbox()) == 2
+        assert len(self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS)) == 2

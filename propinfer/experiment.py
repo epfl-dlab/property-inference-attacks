@@ -295,9 +295,10 @@ class Experiment:
         epochs = hyperparams['epochs'] if 'epochs' in hyperparams.keys() else 20
         lr = hyperparams['learning_rate'] if 'learning_rate' in hyperparams.keys() else 1e-4
         wd = hyperparams['weight_decay'] if 'weight_decay' in hyperparams.keys() else 1e-4
+        out_dim = 1 if self.n_classes > 1 or not hasattr(self.range[0], '__getitem__') else len(self.range)
 
         meta_classifier = DeepSets(self.shadow_models[0].parameters(), latent_dim=latent_dim,
-                                   epochs=epochs, lr=lr, wd=wd, n_classes=self.n_classes)
+                                   epochs=epochs, lr=lr, wd=wd, n_classes=self.n_classes, out_dim=out_dim)
 
         train = [s.parameters() for s in self.shadow_models]
         test = [t.parameters() for t in self.targets]
@@ -307,7 +308,7 @@ class Experiment:
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)
+        return self.__get_score(y_pred)
 
     def run_whitebox_sort(self, sort=True, n_outputs=1):
         """Runs a whitebox attack on the target models, by using the model parameters as features for a meta-classifier

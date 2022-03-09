@@ -12,7 +12,7 @@ __pdoc__ = {
 
 
 class DeepSets(nn.Module):
-    def __init__(self, param, latent_dim, epochs, lr, wd, dropout=0.5, bs=32, n_classes=2):
+    def __init__(self, param, latent_dim, epochs, lr, wd, dropout=0.5, bs=32, n_classes=2, out_dim=1):
         super().__init__()
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -44,8 +44,11 @@ class DeepSets(nn.Module):
             raise AttributeError('The given param is not a list or ndarray, but is {}'.format(type(param).__name__))
 
         dim = len(param) * latent_dim
+
+        out_dim = n_classes if n_classes > 1 else out_dim
+
         self.classifier = nn.Sequential(
-            nn.Linear(dim, n_classes)
+            nn.Linear(dim, out_dim)
         ).to(self.device)
 
         self.epochs = epochs
@@ -53,6 +56,7 @@ class DeepSets(nn.Module):
         self.wd = wd
         self.bs = bs
         self.n_classes = n_classes
+        self.out_dim = out_dim
 
     def forward(self, X):
         offset = 0
@@ -74,7 +78,7 @@ class DeepSets(nn.Module):
 
         x = torch.cat(l, dim=1)
         x = self.classifier(x)
-        return x if self.n_classes > 1 else x.flatten()
+        return x.view(X.shape[0], -1) if self.out_dim > 1 else x.flatten()
 
     def parameters(self, recurse: bool = True):
         params = list(self.classifier.parameters())
@@ -110,7 +114,11 @@ class DeepSets(nn.Module):
             for X, y_true in loader:
                 opt.zero_grad()
                 y_pred = self.forward(X)
-                loss = criterion(y_pred, y_true.view(-1))
+                if self.out_dim > 1 and self.n_classes == 1:
+                    y_true = y_true.view(X.shape[0], -1)
+                else:
+                    y_true = y_true.view(-1)
+                loss = criterion(y_pred, y_true)
                 tot_loss += loss.item()
                 loss.backward()
                 opt.step()

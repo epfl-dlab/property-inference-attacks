@@ -95,11 +95,10 @@ class MultilabelProbitGenerator(Generator):
 
         x = multivariate_normal(mean, cov, size=self.num_samples)
 
-        beta = array([-1., 1., -0.5, 0.5])
+        beta = array([-1., 1., -0.5, 1.5])
         y = x @ beta + 0.25 + normal(0., 1., size=self.num_samples)
 
-        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples),
-                         columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
+        data = DataFrame(data=x, columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
         data['label'] = (y > 0).astype('int32')
 
         return data

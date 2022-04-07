@@ -1,8 +1,8 @@
 from unittest import TestCase
 
 from propinfer import Experiment
-from propinfer import GaussianGenerator, IndependentPropertyGenerator, MultilabelProbitGenerator
-from propinfer import LogReg, MLP
+from propinfer import GaussianGenerator, IndependentPropertyGenerator, MultilabelProbitGenerator, LinearGenerator
+from propinfer import LinReg, LogReg, MLP
 
 import numpy as np
 
@@ -71,7 +71,7 @@ class TestExperiment(TestCase):
         assert res['whitebox'] > res_indep['whitebox']
         assert res['blackbox'] > res_indep['blackbox']
 
-    def test_optimise(self):
+    def test_optimise_classifier(self):
         assert isinstance(DEFAULT_HYPERPARAMS_MLP['learning_rate'], list)
         assert isinstance(DEFAULT_HYPERPARAMS_MLP['weight_decay'], list)
 
@@ -80,6 +80,13 @@ class TestExperiment(TestCase):
 
         assert not isinstance(self.exp.hyperparams['learning_rate'], list)
         assert not isinstance(self.exp.hyperparams['weight_decay'], list)
+
+    def test_optimise_regressor(self):
+        self.gen = LinearGenerator()
+        self.model = LinReg
+        self.exp = Experiment(self.gen, 'label', self.model, self.num_targets, self.num_shadows, {'dummy': [0., 1.]})
+
+        assert not isinstance(self.exp.hyperparams['dummy'], list)
 
     def test_attacks_multiple(self):
         self.exp.run_targets()
@@ -169,3 +176,14 @@ class TestExperiment(TestCase):
         assert len(self.exp.run_whitebox_sort()) == 2
         assert len(self.exp.run_blackbox()) == 2
         assert len(self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS)) == 2
+
+    def test_attack_regressor(self):
+        gen = LinearGenerator()
+        self.exp = Experiment(gen, 'label', LinReg, self.num_targets, self.num_shadows, dict())
+
+        self.exp.run_targets()
+        self.exp.run_shadows()
+
+        assert self.exp.run_whitebox_sort() > 0.25
+        assert self.exp.run_blackbox() > 0.25
+        assert self.exp.run_whitebox_deepsets(DEFAULT_HYPERPARAMS_DEEPSETS) > 0.25

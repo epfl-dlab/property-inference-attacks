@@ -1,9 +1,9 @@
 from unittest import TestCase
 
-from propinfer import LogReg, MLP
-from propinfer import GaussianGenerator
+from propinfer import LinReg, LogReg, MLP
+from propinfer import GaussianGenerator, LinearGenerator
 
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, mean_squared_error
 from numpy import sum, abs
 
 DEFAULT_HYPERPARAMS_LOGREG = {
@@ -22,6 +22,15 @@ DEFAULT_HYPERPARAMS_MLP = {
 
 
 class Test(TestCase):
+    def test_linreg(self):
+        gen = LinearGenerator()
+        model = LinReg('label')
+
+        train = gen.sample(False)
+        model.fit(train)
+
+        assert mean_squared_error(train['label'], model.predict(train)) < 2.
+
     def test_logreg(self):
         gen = GaussianGenerator()
         model = LogReg('label', DEFAULT_HYPERPARAMS_LOGREG)

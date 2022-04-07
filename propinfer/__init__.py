@@ -13,8 +13,8 @@ import logging
 
 from propinfer.experiment import Experiment
 from propinfer.generator import Generator, GaussianGenerator, IndependentPropertyGenerator, ProbitGenerator, \
-    NonlinearGenerator, SubsamplingGenerator, MultilabelProbitGenerator
-from propinfer.model import Model, LogReg, MLP
+                                LinearGenerator, SubsamplingGenerator, MultilabelProbitGenerator
+from propinfer.model import Model, LinReg, LogReg, MLP
 
 logging.getLogger('propinfer').addHandler(logging.NullHandler())
 

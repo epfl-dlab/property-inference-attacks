@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import warnings
 
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.exceptions import ConvergenceWarning
 
 from torch.nn.functional import softmax
@@ -92,7 +92,8 @@ class Model:
             data: DataFrame containing all useful data
         Returns: np.array containing predictions
         """
-        return self.predict_proba(data).argmax(axis=1)
+        res = self.predict_proba(data)
+        return res.flatten() if len(res.shape) < 2 or res.shape[1] == 1 else res.argmax(axis=1)
 
     def predict_proba(self, data):
         """Outputs prediction probability scores for the given data
@@ -116,7 +117,50 @@ class Model:
         return []
 
 
-class LogReg(Model):
+class LinReg(Model):
+    def __init__(self, label_col, hyperparams=None):
+        """A linear regression based model
+
+        Args:
+            label_col: the index of the column to be used as Label
+            hyperparams (dict of DictConfig): hyperperameters for the Model
+                Accepted keywords: max_iter (default = 100), normalise (default=False)
+        """
+        if hyperparams is not None:
+            assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict),\
+                'The given hyperparameters are not a dict or a DictConfig, but are {}'.format(type(hyperparams).__name__)
+        else:
+            hyperparams = dict()
+
+        if 'normalise' in hyperparams.keys():
+            normalise = hyperparams['normalise']
+        elif 'normalize' in hyperparams.keys():
+            normalise = hyperparams['normalize']
+        else:
+            normalise = False
+
+        super().__init__(label_col, normalise)
+        self.model = LinearRegression()
+
+    def fit(self, data):
+        X, y = self._prepare_data(data, train=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=ConvergenceWarning)
+            self.model.fit(X, y)
+        return self
+
+    def predict_proba(self, data):
+        X, _ = self._prepare_data(data, train=True)
+        return self.model.predict(X)
+
+    def parameters(self):
+        intercept = self.model.intercept_
+        if not isinstance(intercept, np.ndarray):
+            intercept = np.array([intercept])
+        return np.concatenate([intercept, self.model.coef_.flatten()])
+
+
+class LogReg(LinReg):
     def __init__(self, label_col, hyperparams):
         """A logistic regression based model
 
@@ -133,29 +177,12 @@ class LogReg(Model):
 
         max_iter = hyperparams['max_iter'] if 'max_iter' in hyperparams.keys() else 100
 
-        if 'normalise' in hyperparams.keys():
-            normalise = hyperparams['normalise']
-        elif 'normalize' in hyperparams.keys():
-            normalise = hyperparams['normalize']
-        else:
-            normalise = False
-
-        super(LogReg, self).__init__(label_col, normalise)
+        super().__init__(label_col, hyperparams)
         self.model = LogisticRegression(max_iter=max_iter)
-
-    def fit(self, data):
-        X, y = self._prepare_data(data, train=True)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=ConvergenceWarning)
-            self.model.fit(X, y)
-        return self
 
     def predict_proba(self, data):
         X, _ = self._prepare_data(data, train=True)
         return self.model.predict_proba(X)
-
-    def parameters(self):
-        return np.concatenate([self.model.intercept_, self.model.coef_.flatten()])
 
 
 class MLP(Model):

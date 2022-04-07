@@ -1,5 +1,5 @@
 import numpy as np
-from numpy import array, eye, zeros, concatenate, int32, int64, float32
+from numpy import array, eye, zeros, ones, concatenate, int32, int64, float32
 from numpy.random import normal, multivariate_normal
 from pandas import DataFrame, concat, get_dummies
 from sklearn.model_selection import StratifiedShuffleSplit
@@ -71,18 +71,31 @@ class IndependentPropertyGenerator(Generator):
         return data
 
 
-class ProbitGenerator(Generator):
-    """Generator sampling from a probit model of which variance depends on the sensitive attribute."""
+class LinearGenerator(Generator):
+    """Generator sampling from a linear model with additive white gaussian noise
+
+    The sensitive attribute defines the mean of the covariates"""
 
     def sample(self, label, adv=False):
         beta = array([-1., 1., -0.5, 0.5])
-        x = multivariate_normal(zeros(4), eye(4), size=self.num_samples)
-        y = x @ beta + normal(0., 1+label, size=self.num_samples) + 0.5
+        x = multivariate_normal(ones(4) * label, eye(4), size=self.num_samples)
+        y = x @ beta + normal(0., size=self.num_samples) + 0.5
 
         data = DataFrame(data=x,
                          columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
-        data['label'] = (y > 0).astype('int32')
+        data['label'] = y.astype('float32')
 
+        return data
+
+
+class ProbitGenerator(LinearGenerator):
+    """Generator sampling from a probit model with additive white gaussian noise
+
+    The sensitive attribute defines the mean of the covariates"""
+
+    def sample(self, label, adv=False):
+        data = super().sample(label, adv)
+        data['label'] = (data['label'] > 0).astype('int32')
         return data
 
 
@@ -100,25 +113,6 @@ class MultilabelProbitGenerator(Generator):
 
         data = DataFrame(data=x, columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
         data['label'] = (y > 0).astype('int32')
-
-        return data
-
-
-class NonlinearGenerator(Generator):
-    """Generator sampling from non-linear combinations of the features with added white gaussian noise.
-
-    Sensitive attribute changes the factor used for some of the features."""
-
-    def sample(self, label, adv=False):
-        beta = array([1.*label, 1.*(1. - label), 1., 1.])
-        x = multivariate_normal(zeros(4), eye(4), size=self.num_samples)
-        epsilon = normal(0., 1., size=self.num_samples) + 0.5
-
-        data = DataFrame(data=x,
-                         columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
-        data['label'] = np.arctan(beta[0] * data['f1']) + np.sin(beta[1] * data['f2']) + \
-                        np.power(beta[2] * data['f3'], 3) + np.tanh(beta[3] * data['f4']) + epsilon
-        data['label'] = (data['label'] > 0).astype('int32')
 
         return data
 

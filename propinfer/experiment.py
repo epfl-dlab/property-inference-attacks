@@ -3,7 +3,7 @@ import numpy as np
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier, MLPRegressor
-from sklearn.metrics import accuracy_score, mean_absolute_error
+from sklearn.metrics import accuracy_score, mean_absolute_error, mean_squared_error
 from sklearn.model_selection import StratifiedShuffleSplit
 from omegaconf import DictConfig
 from itertools import product
@@ -78,6 +78,16 @@ class Experiment:
         self.shadow_models = None
         self.shadow_labels = None
 
+        if n_classes == 1 and hasattr(self.range[0], '__getitem__'):
+            label = [r[0] for r in self.range]
+            data = self.generator.sample(label)
+        elif n_classes == 1:
+            data = self.generator.sample(range[0])
+        else:
+            data = self.generator.sample(0)
+        reg = self.model(self.label_col, self.hyperparams).fit(data).predict_proba(data)
+        self.is_regression = len(reg.shape) < 2 or reg.shape[1] == 1
+
     def __optimise_hyperparams(self):
         optims = list()
         keys = list()
@@ -91,8 +101,9 @@ class Experiment:
 
         optims = list(product(*optims))
 
-        best_acc = 0.
-        best_hyper = None
+        best_res = -np.inf
+        reg_checked = False
+        is_reg = False
 
         for params in optims:
             hyperparams = self.hyperparams.copy()
@@ -101,21 +112,34 @@ class Experiment:
             train = [self.generator.sample(b) for b in [False, True]]
             test = [self.generator.sample(b) for b in [False, True]]
 
-            acc = 0.
+            res = 0.
 
             for i in range(len(train)):
                 models = [self.model(self.label_col, hyperparams).fit(train[i]) for _ in range(10)]
-                acc += np.mean([accuracy_score(test[i][self.label_col], m.predict(train[i])) for m in models])
 
-            acc /= len(train)
+                if not reg_checked and \
+                        (len(models[0].predict_proba(test[0]).shape) < 2 or
+                         models[0].predict_proba(test[0]).shape[1] == 1):
+                    is_reg = True
 
-            if acc > best_acc:
-                best_acc = acc
-                best_hyper = hyperparams
+                reg_checked = True
 
-        logger.debug('Best hyperparameters defined as: {}'.format(best_hyper))
-        logger.debug('Best accuracy: {:.2%}'.format(best_acc))
-        self.hyperparams = best_hyper
+                if is_reg:
+                    res -= np.mean([mean_squared_error(test[i][self.label_col], m.predict(train[i])) for m in models])
+                else:
+                    res += np.mean([accuracy_score(test[i][self.label_col], m.predict(train[i])) for m in models])
+
+            res /= len(train)
+
+            if res > best_res:
+                best_res = res
+                self.hyperparams = hyperparams
+
+        logger.debug('Best hyperparameters defined as: {}'.format(self.hyperparams))
+        if is_reg:
+            logger.debug('Best MSE: {:.2}'.format(-best_res))
+        else:
+            logger.debug('Best accuracy: {:.2%}'.format(best_res))
 
     def run_targets(self):
         """Create and fit target models """
@@ -138,10 +162,17 @@ class Experiment:
         self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
                         [self.generator.sample(label) for label in self.labels]]
 
-        scores = [accuracy_score(data[self.label_col], self.targets[i].predict(data)) for i, data in
-                  enumerate([self.generator.sample(label) for label in self.labels])]
-        logger.debug('Target models accuracy - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
-            np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
+        if self.is_regression:
+            scores = [mean_squared_error(data[self.label_col], self.targets[i].predict(data)) for i, data in
+                      enumerate([self.generator.sample(label) for label in self.labels])]
+            logger.debug('Target models MAE - mean={:.2} - std={:.2} - min={:.2} - max={:.2}'.format(
+                np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
+
+        else:
+            scores = [accuracy_score(data[self.label_col], self.targets[i].predict(data)) for i, data in
+                        enumerate([self.generator.sample(label) for label in self.labels])]
+            logger.debug('Target models accuracy - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
+                        np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_shadows(self, model=None, hyperparams=None):
         """Create and fit shadow models
@@ -183,13 +214,20 @@ class Experiment:
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
                               [self.generator.sample(label, adv=True) for label in self.shadow_labels]]
 
-        scores = [accuracy_score(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
+        if self.is_regression:
+            scores = [mean_squared_error(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
                       enumerate([self.generator.sample(label, adv=True) for label in self.shadow_labels])]
-        logger.debug('Shadow models accuracy ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
-            model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
+            logger.debug('Shadow models MAE - mean={:.2} - std={:.2} - min={:.2} - max={:.2}'.format(
+                np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
+
+        else:
+            scores = [accuracy_score(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
+                      enumerate([self.generator.sample(label, adv=True) for label in self.shadow_labels])]
+            logger.debug('Shadow models accuracy - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
+                np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_loss_test(self):
-        """Runs a loss test attack on target models. Works only for the binary classification task.
+        """Runs a loss test attack on target models. Works only for the binary classification attack on a classifier.
 
         Returns: Attack accuracy on target models
         """
@@ -224,7 +262,7 @@ class Experiment:
         return accs
 
     def run_threshold_test(self, n_outputs=1):
-        """Runs a threshold test attack on target models. Works only for the binary classification task.
+        """Runs a threshold test attack on target models. Works only for the binary classification attack on a classifier.
 
         Args:
             n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models

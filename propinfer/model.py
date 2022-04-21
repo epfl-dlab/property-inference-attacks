@@ -59,7 +59,7 @@ class Model:
 
         return X, y
 
-    def _prepare_dataloader(self, df, bs=32, train=True):
+    def _prepare_dataloader(self, df, bs=32, train=True, regression=False):
         """Prepares data, and puts it inside a ready-to-use PyTorch DataLoader.
 
         Args:
@@ -72,7 +72,7 @@ class Model:
         X, y = self._prepare_data(df, train)
 
         X = torch.tensor(X.values.astype(np.float32), device=self.device)
-        y = torch.tensor(y.values.astype(np.int64), device=self.device)
+        y = torch.tensor(y.values.astype(np.int64 if not regression else np.float32), device=self.device)
         data = torch.utils.data.TensorDataset(X, y)
         loader = torch.utils.data.DataLoader(dataset=data, batch_size=bs, shuffle=train)
 
@@ -192,8 +192,8 @@ class MLP(Model):
         Args:
             label_col: the index of the column to be used as Label
             hyperparams (dict of DictConfig): hyperperameters for the Model
-                Accepted keywords: input_size (mandatory), n_classes (mandatory), layers (default=[64,16])
-                epochs (default=20), learning_rate (default=1e-1), weight_decay (default=1e-2),
+                Accepted keywords: input_size (mandatory), n_classes (mandatory, performs regression if is 1),
+                layers (default=[64,16]), epochs (default=20), learning_rate (default=1e-1), weight_decay (default=1e-2),
                 batch_size (default=32), normalise (default=False)
         """
         assert isinstance(hyperparams, DictConfig) or isinstance(hyperparams, dict), \
@@ -215,7 +215,7 @@ class MLP(Model):
         if 'num_classes' in hyperparams.keys():
             hyperparams['n_classes'] = hyperparams['num_classes']
 
-        n_classes = hyperparams['n_classes']
+        self.n_classes = hyperparams['n_classes']
 
         seq = list()
         for l in layers:
@@ -226,7 +226,7 @@ class MLP(Model):
             input_size = l
 
         seq.extend([
-            nn.Linear(input_size, n_classes)
+            nn.Linear(input_size, self.n_classes)
         ])
 
         self.model = nn.Sequential(*seq).to(self.device)
@@ -237,15 +237,19 @@ class MLP(Model):
         self.bs = hyperparams['batch_size'] if 'batch_size' in hyperparams.keys() else 32
 
     def fit(self, data):
-        loader = self._prepare_dataloader(data, bs=self.bs, train=True)
+        loader = self._prepare_dataloader(data, bs=self.bs, train=True, regression=self.n_classes == 1)
 
         opt = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.wd)
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.CrossEntropyLoss() if self.n_classes > 1 else nn.MSELoss()
 
         for _ in range(self.epochs):
             for X, y_true in loader:
                 opt.zero_grad()
                 y_pred = self.model(X)
+
+                if y_pred.shape[1] == 1:
+                    y_pred = y_pred.flatten()
+
                 loss = criterion(y_pred, y_true)
                 loss.backward()
                 opt.step()
@@ -253,12 +257,16 @@ class MLP(Model):
         return self
 
     def predict_proba(self, data):
-        loader = self._prepare_dataloader(data, bs=self.bs, train=False)
-
+        loader = self._prepare_dataloader(data, bs=self.bs, train=False, regression=self.n_classes == 1)
         preds = list()
 
-        for X, _ in loader:
-            preds.append(softmax(self.model(X).cpu(), dim=1))
+        if self.n_classes > 1:
+            for X, _ in loader:
+                preds.append(softmax(self.model(X).cpu(), dim=1))
+
+        else:
+            for X, _ in loader:
+                preds.append(self.model(X).cpu())
 
         return np.nan_to_num(torch.cat(preds, dim=0).detach().cpu().numpy())
 

@@ -46,7 +46,7 @@ logger = logging.getLogger('propinfer')
 def main(cfg: DictConfig):
     experiments = dict()
     for gen in cfg.experiments.generators:
-        generator = GENERATORS[gen](num_samples=cfg.generators.num_samples)
+        generator = GENERATORS[gen](num_samples=cfg.generators.n_samples)
         for model in cfg.experiments.models:
             n_classes = cfg.experiments.n_classes if 'n_classes' in cfg.experiments.keys() else 2
             exp_range = None if n_classes > 1 else cfg.experiments.range

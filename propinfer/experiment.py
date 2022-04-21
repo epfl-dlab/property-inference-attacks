@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 
-from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.metrics import accuracy_score, mean_absolute_error, mean_squared_error
 from sklearn.model_selection import StratifiedShuffleSplit

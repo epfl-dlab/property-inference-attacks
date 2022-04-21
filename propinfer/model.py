@@ -192,7 +192,7 @@ class MLP(Model):
         Args:
             label_col: the index of the column to be used as Label
             hyperparams (dict of DictConfig): hyperperameters for the Model
-                Accepted keywords: input_size (mandatory), num_classes (mandatory), layers (default=[64,16])
+                Accepted keywords: input_size (mandatory), n_classes (mandatory), layers (default=[64,16])
                 epochs (default=20), learning_rate (default=1e-1), weight_decay (default=1e-2),
                 batch_size (default=32), normalise (default=False)
         """
@@ -210,7 +210,12 @@ class MLP(Model):
         layers = hyperparams['layers'] if 'layers' in hyperparams.keys() else [64, 16]
 
         input_size = hyperparams['input_size']
-        num_classes = hyperparams['num_classes']
+
+        # Legacy version compatibility
+        if 'num_classes' in hyperparams.keys():
+            hyperparams['n_classes'] = hyperparams['num_classes']
+
+        n_classes = hyperparams['n_classes']
 
         seq = list()
         for l in layers:
@@ -221,7 +226,7 @@ class MLP(Model):
             input_size = l
 
         seq.extend([
-            nn.Linear(input_size, num_classes)
+            nn.Linear(input_size, n_classes)
         ])
 
         self.model = nn.Sequential(*seq).to(self.device)

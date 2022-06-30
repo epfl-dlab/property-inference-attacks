@@ -395,12 +395,9 @@ class Experiment:
         meta_classifier = MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True) \
             if self.n_classes > 1 else MLPRegressor(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True)
 
-
-
         if self.n_classes > 1:
             queries = pd.concat([self.generator.sample(i, adv=True) for i in range(self.n_classes)])
-            sample_len = len(self.generator.sample(0, adv=True))
-            labels = np.concatenate([[i]*sample_len for i in range(self.n_classes)])
+            labels = np.concatenate([[i]*len(self.generator.sample(i, adv=True)) for i in range(self.n_classes)])
         elif self.n_classes == 1:
             if hasattr(self.range[0], '__getitem__'):
                 bounds = np.array(self.range)

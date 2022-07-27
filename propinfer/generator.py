@@ -18,11 +18,10 @@ class Generator:
         self.n_samples = n_samples
 
     def sample(self, label, adv=False):
-        """Returns a dataset sampled from the data; the boolean b describes whether or not the output dataset should have
-        or not the property that is being attacked
+        """Returns a dataset sampled from the data; the label variable corresponds to the property being attacked
 
         Args:
-            label (int or float or numpy.array): the label that corresponds to the dataset being queried
+            label (int or float or numpy.array): the label corresponding to the dataset being queried - when performing regression, the value of the target variable(s)
             adv (bool): a boolean describing whether we are using target or adversary data split
 
         Returns:

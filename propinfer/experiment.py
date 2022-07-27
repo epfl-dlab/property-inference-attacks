@@ -31,6 +31,7 @@ class Experiment:
             n_queries (int): the number of queries used in the scope of grey- and black-box attacks
             n_classes (int): the number of classes considered for property inference; if 1 then a regression is performed
             range (tuple): the range of values accepted for regression tasks (needed for regression, ignored for classification)
+                         it is possible to pass an iterable of multiple ranges in order to perform multi-variable property inference regression, in which case the values of the variables are passed to the Generator as a list
         """
 
         assert isinstance(generator, Generator), 'The given generator is not an instance of Generator, but {}'.format(type(generator).__name__)
@@ -88,6 +89,7 @@ class Experiment:
         self.is_regression = len(reg.shape) < 2 or reg.shape[1] == 1
 
     def __optimise_hyperparams(self):
+        """Private method for hyperparamters grid optimisation"""
         optims = list()
         keys = list()
 
@@ -240,6 +242,8 @@ class Experiment:
         return accuracy_score(self.labels, [np.argmax(acc) for acc in accuracy])
 
     def __run_multiple(self, n, func, *args):
+        """Helper private method to run a same attack multiple times"""
+
         sss = StratifiedShuffleSplit(n_splits=n, train_size=0.5)
         shadow_models = np.array(self.shadow_models)
         shadow_labels = np.array(self.shadow_labels)

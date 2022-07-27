@@ -187,7 +187,7 @@ class LogReg(LinReg):
 
 class MLP(Model):
     def __init__(self, label_col, hyperparams):
-        """A Multi-Layer Perceptron based model
+        """A Multi-Layer Perceptron based model, for either regression or classification
 
         Args:
             label_col: the index of the column to be used as Label

@@ -32,6 +32,40 @@
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="propinfer.model.LinReg"><code class="flex name class">
+<span>class <span class="ident">LinReg</span></span>
+<span>(</span><span>label_col, hyperparams=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A linear regression based model</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>label_col</code></strong></dt>
+<dd>the index of the column to be used as Label</dd>
+<dt><strong><code>hyperparams</code></strong> :&ensp;<code>dict</code> of <code>DictConfig</code></dt>
+<dd>hyperperameters for the Model
+Accepted keywords: max_iter (default = 100), normalise (default=False)</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="propinfer.model.Model" href="#propinfer.model.Model">Model</a></li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="propinfer.model.LogReg" href="#propinfer.model.LogReg">LogReg</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="propinfer.model.Model" href="#propinfer.model.Model">Model</a></b></code>:
+<ul class="hlist">
+<li><code><a title="propinfer.model.Model.fit" href="#propinfer.model.Model.fit">fit</a></code></li>
+<li><code><a title="propinfer.model.Model.parameters" href="#propinfer.model.Model.parameters">parameters</a></code></li>
+<li><code><a title="propinfer.model.Model.predict" href="#propinfer.model.Model.predict">predict</a></code></li>
+<li><code><a title="propinfer.model.Model.predict_proba" href="#propinfer.model.Model.predict_proba">predict_proba</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="propinfer.model.LogReg"><code class="flex name class">
 <span>class <span class="ident">LogReg</span></span>
 <span>(</span><span>label_col, hyperparams)</span>
@@ -48,16 +82,17 @@ Accepted keywords: max_iter (default = 100), normalise (default=False)</dd>
 </dl></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
+<li><a title="propinfer.model.LinReg" href="#propinfer.model.LinReg">LinReg</a></li>
 <li><a title="propinfer.model.Model" href="#propinfer.model.Model">Model</a></li>
 </ul>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="propinfer.model.Model" href="#propinfer.model.Model">Model</a></b></code>:
+<li><code><b><a title="propinfer.model.LinReg" href="#propinfer.model.LinReg">LinReg</a></b></code>:
 <ul class="hlist">
-<li><code><a title="propinfer.model.Model.fit" href="#propinfer.model.Model.fit">fit</a></code></li>
-<li><code><a title="propinfer.model.Model.parameters" href="#propinfer.model.Model.parameters">parameters</a></code></li>
-<li><code><a title="propinfer.model.Model.predict" href="#propinfer.model.Model.predict">predict</a></code></li>
-<li><code><a title="propinfer.model.Model.predict_proba" href="#propinfer.model.Model.predict_proba">predict_proba</a></code></li>
+<li><code><a title="propinfer.model.LinReg.fit" href="#propinfer.model.Model.fit">fit</a></code></li>
+<li><code><a title="propinfer.model.LinReg.parameters" href="#propinfer.model.Model.parameters">parameters</a></code></li>
+<li><code><a title="propinfer.model.LinReg.predict" href="#propinfer.model.Model.predict">predict</a></code></li>
+<li><code><a title="propinfer.model.LinReg.predict_proba" href="#propinfer.model.Model.predict_proba">predict_proba</a></code></li>
 </ul>
 </li>
 </ul>
@@ -67,15 +102,15 @@ Accepted keywords: max_iter (default = 100), normalise (default=False)</dd>
 <span>(</span><span>label_col, hyperparams)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>A Multi-Layer Perceptron based model</p>
+<div class="desc"><p>A Multi-Layer Perceptron based model, for either regression or classification</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>label_col</code></strong></dt>
 <dd>the index of the column to be used as Label</dd>
 <dt><strong><code>hyperparams</code></strong> :&ensp;<code>dict</code> of <code>DictConfig</code></dt>
 <dd>hyperperameters for the Model
-Accepted keywords: input_size (mandatory), num_classes (mandatory), layers (default=[64,16])
-epochs (default=20), learning_rate (default=1e-1), weight_decay (default=1e-2),
+Accepted keywords: input_size (mandatory), n_classes (mandatory, performs regression if is 1),
+layers (default=[64,16]), epochs (default=20), learning_rate (default=1e-1), weight_decay (default=1e-2),
 batch_size (default=32), normalise (default=False)</dd>
 </dl></div>
 <h3>Ancestors</h3>
@@ -109,7 +144,7 @@ batch_size (default=32), normalise (default=False)</dd>
 </dl></div>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="propinfer.model.LogReg" href="#propinfer.model.LogReg">LogReg</a></li>
+<li><a title="propinfer.model.LinReg" href="#propinfer.model.LinReg">LinReg</a></li>
 <li><a title="propinfer.model.MLP" href="#propinfer.model.MLP">MLP</a></li>
 </ul>
 <h3>Methods</h3>
@@ -186,6 +221,9 @@ grouped in a list, with weights going before biases.</li>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
+<li>
+<h4><code><a title="propinfer.model.LinReg" href="#propinfer.model.LinReg">LinReg</a></code></h4>
+</li>
 <li>
 <h4><code><a title="propinfer.model.LogReg" href="#propinfer.model.LogReg">LogReg</a></code></h4>
 </li>

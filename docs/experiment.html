@@ -52,11 +52,12 @@
 <dd>dictionary containing every useful hyper-parameter for the Model;
 if a list is provided for some hyperparameter(s), we grid optimise between all given options (except for keyword <code>layers</code>)</dd>
 <dt><strong><code>n_queries</code></strong> :&ensp;<code>int</code></dt>
-<dd>the number of queries used in the scope of grey- and black-box attacks</dd>
+<dd>the number of queries used in the scope of grey- and black-box attacks. Must be strictly superior to <code>n_targets</code></dd>
 <dt><strong><code>n_classes</code></strong> :&ensp;<code>int</code></dt>
 <dd>the number of classes considered for property inference; if 1 then a regression is performed</dd>
 <dt><strong><code>range</code></strong> :&ensp;<code>tuple</code></dt>
-<dd>the range of values accepted for regression tasks (needed for regression, ignored for classification)</dd>
+<dd>the range of values accepted for regression tasks (needed for regression, ignored for classification)
+it is possible to pass an iterable of multiple ranges in order to perform multi-variable property inference regression, in which case the values of the variables are passed to the Generator as a list</dd>
 </dl></div>
 <h3>Methods</h3>
 <dl>
@@ -76,7 +77,7 @@ if a list is provided for some hyperparameter(s), we grid optimise between all g
 <span>def <span class="ident">run_loss_test</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Runs a loss test attack on target models. Works only for the binary classification task.</p>
+<div class="desc"><p>Runs a loss test attack on target models. Works only for the binary classification attack on a classifier.</p>
 <p>Returns: Attack accuracy on target models</p></div>
 </dd>
 <dt id="propinfer.experiment.Experiment.run_shadows"><code class="name flex">
@@ -103,7 +104,7 @@ Hyperparameters of shadow models will NOT be optimised. If None, will be the sam
 <span>def <span class="ident">run_threshold_test</span></span>(<span>self, n_outputs=1)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Runs a threshold test attack on target models. Works only for the binary classification task.</p>
+<div class="desc"><p>Runs a threshold test attack on target models. Works only for the binary classification attack on a classifier.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>n_outputs</code></strong> :&ensp;<code>int</code></dt>

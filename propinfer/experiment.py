@@ -28,7 +28,7 @@ class Experiment:
             n_shadows (int): the total number of shadow models
             hyperparams (dict or DictConfig): dictionary containing every useful hyper-parameter for the Model;
                          if a list is provided for some hyperparameter(s), we grid optimise between all given options (except for keyword `layers`)
-            n_queries (int): the number of queries used in the scope of grey- and black-box attacks
+            n_queries (int): the number of queries used in the scope of grey- and black-box attacks. Must be strictly superior to `n_targets`
             n_classes (int): the number of classes considered for property inference; if 1 then a regression is performed
             range (tuple): the range of values accepted for regression tasks (needed for regression, ignored for classification)
                          it is possible to pass an iterable of multiple ranges in order to perform multi-variable property inference regression, in which case the values of the variables are passed to the Generator as a list
@@ -59,6 +59,7 @@ class Experiment:
             self.hyperparams = dict()
 
         assert isinstance(n_queries, int), 'The given n_queries is not an integer, but is {}'.format(type(n_queries).__name__)
+        assert n_queries > n_targets, f'n_queries={n_queries} must be strictly superior to n_targets={n_targets}'
         self.n_queries = n_queries
 
         assert isinstance(n_classes, int), 'The given n_classes is not an integer, but is {}'.format(type(n_classes).__name__)

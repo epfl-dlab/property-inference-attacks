@@ -1,10 +1,9 @@
 from unittest import TestCase
 
-from propinfer import LogReg, MLP
-from propinfer import GaussianGenerator
+from propinfer import LinReg, LogReg, MLP
+from propinfer import GaussianGenerator, LinearGenerator
 
-from sklearn.metrics import accuracy_score
-from numpy import sum, abs
+from sklearn.metrics import accuracy_score, mean_squared_error
 
 DEFAULT_HYPERPARAMS_LOGREG = {
     "max_iter": 100
@@ -20,8 +19,27 @@ DEFAULT_HYPERPARAMS_MLP = {
     "layers": [8]
 }
 
+DEFAULT_HYPERPARAMS_MLP_REGRESSOR = {
+    "input_size": 4,
+    "num_classes": 1,
+    "epochs": 20,
+    "learning_rate": 1e-2,
+    "weight_decay": 1e-3,
+    "batch_size": 32,
+    "layers": [8]
+}
+
 
 class Test(TestCase):
+    def test_linreg(self):
+        gen = LinearGenerator()
+        model = LinReg('label')
+
+        train = gen.sample(False)
+        model.fit(train)
+
+        assert mean_squared_error(train['label'], model.predict(train)) < 2.
+
     def test_logreg(self):
         gen = GaussianGenerator()
         model = LogReg('label', DEFAULT_HYPERPARAMS_LOGREG)
@@ -41,3 +59,13 @@ class Test(TestCase):
         model.fit(train)
 
         assert accuracy_score(train['label'], model.predict(train)) > 0.75
+
+    def test_mlp_regression(self):
+        gen = LinearGenerator()
+
+        model = MLP('label', DEFAULT_HYPERPARAMS_MLP_REGRESSOR)
+
+        train = gen.sample(False)
+        model.fit(train)
+
+        assert mean_squared_error(train['label'], model.predict(train)) < 2.

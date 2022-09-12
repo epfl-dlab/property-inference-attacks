@@ -34,7 +34,7 @@
 <dl>
 <dt id="propinfer.generator.GaussianGenerator"><code class="flex name class">
 <span>class <span class="ident">GaussianGenerator</span></span>
-<span>(</span><span>num_samples=1024)</span>
+<span>(</span><span>n_samples=1024)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Generator sampling from a multivariate Gaussian Distribution in which features are correlated.
@@ -55,7 +55,7 @@ Sensitive attribute is the mean of the fourth feature vector</p></div>
 </dd>
 <dt id="propinfer.generator.Generator"><code class="flex name class">
 <span>class <span class="ident">Generator</span></span>
-<span>(</span><span>num_samples=1024)</span>
+<span>(</span><span>n_samples=1024)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>An abstraction class used to query for data</p></div>
@@ -63,8 +63,8 @@ Sensitive attribute is the mean of the fourth feature vector</p></div>
 <ul class="hlist">
 <li><a title="propinfer.generator.GaussianGenerator" href="#propinfer.generator.GaussianGenerator">GaussianGenerator</a></li>
 <li><a title="propinfer.generator.IndependentPropertyGenerator" href="#propinfer.generator.IndependentPropertyGenerator">IndependentPropertyGenerator</a></li>
-<li><a title="propinfer.generator.NonlinearGenerator" href="#propinfer.generator.NonlinearGenerator">NonlinearGenerator</a></li>
-<li><a title="propinfer.generator.ProbitGenerator" href="#propinfer.generator.ProbitGenerator">ProbitGenerator</a></li>
+<li><a title="propinfer.generator.LinearGenerator" href="#propinfer.generator.LinearGenerator">LinearGenerator</a></li>
+<li><a title="propinfer.generator.MultilabelProbitGenerator" href="#propinfer.generator.MultilabelProbitGenerator">MultilabelProbitGenerator</a></li>
 <li><a title="propinfer.generator.SubsamplingGenerator" href="#propinfer.generator.SubsamplingGenerator">SubsamplingGenerator</a></li>
 </ul>
 <h3>Methods</h3>
@@ -73,12 +73,11 @@ Sensitive attribute is the mean of the fourth feature vector</p></div>
 <span>def <span class="ident">sample</span></span>(<span>self, label, adv=False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Returns a dataset sampled from the data; the boolean b describes whether or not the output dataset should have
-or not the property that is being attacked</p>
+<div class="desc"><p>Returns a dataset sampled from the data; the label variable corresponds to the property being attacked</p>
 <h2 id="args">Args</h2>
 <dl>
-<dt><strong><code>label</code></strong> :&ensp;<code>int</code> or <code>float</code></dt>
-<dd>the label that corresponds to the dataset being queried</dd>
+<dt><strong><code>label</code></strong> :&ensp;<code>int</code> or <code>float</code> or <code>numpy.array</code></dt>
+<dd>the label corresponding to the dataset being queried - when performing regression, the value of the target variable(s)</dd>
 <dt><strong><code>adv</code></strong> :&ensp;<code>bool</code></dt>
 <dd>a boolean describing whether we are using target or adversary data split</dd>
 </dl>
@@ -89,7 +88,7 @@ or not the property that is being attacked</p>
 </dd>
 <dt id="propinfer.generator.IndependentPropertyGenerator"><code class="flex name class">
 <span>class <span class="ident">IndependentPropertyGenerator</span></span>
-<span>(</span><span>num_samples=1024)</span>
+<span>(</span><span>n_samples=1024)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Generator sampling from a multivariate Gaussian Distribution in which features are not correlated with the label, but are correlated between each other.
@@ -108,13 +107,36 @@ Sensitive attribute is the mean of the fourth feature vector</p></div>
 </li>
 </ul>
 </dd>
-<dt id="propinfer.generator.NonlinearGenerator"><code class="flex name class">
-<span>class <span class="ident">NonlinearGenerator</span></span>
-<span>(</span><span>num_samples=1024)</span>
+<dt id="propinfer.generator.LinearGenerator"><code class="flex name class">
+<span>class <span class="ident">LinearGenerator</span></span>
+<span>(</span><span>n_samples=1024)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Generator sampling from non-linear combinations of the features with added white gaussian noise.</p>
-<p>Sensitive attribute changes the factor used for some of the features.</p></div>
+<div class="desc"><p>Generator sampling from a linear model with additive white gaussian noise</p>
+<p>The sensitive attribute defines the mean of the covariates</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="propinfer.generator.Generator" href="#propinfer.generator.Generator">Generator</a></li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="propinfer.generator.ProbitGenerator" href="#propinfer.generator.ProbitGenerator">ProbitGenerator</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="propinfer.generator.Generator" href="#propinfer.generator.Generator">Generator</a></b></code>:
+<ul class="hlist">
+<li><code><a title="propinfer.generator.Generator.sample" href="#propinfer.generator.Generator.sample">sample</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="propinfer.generator.MultilabelProbitGenerator"><code class="flex name class">
+<span>class <span class="ident">MultilabelProbitGenerator</span></span>
+<span>(</span><span>n_samples=1024)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Generator sampling from a probit model of which sensitive attribute are the mean and variance of the covariates</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="propinfer.generator.Generator" href="#propinfer.generator.Generator">Generator</a></li>
@@ -130,26 +152,28 @@ Sensitive attribute is the mean of the fourth feature vector</p></div>
 </dd>
 <dt id="propinfer.generator.ProbitGenerator"><code class="flex name class">
 <span>class <span class="ident">ProbitGenerator</span></span>
-<span>(</span><span>num_samples=1024)</span>
+<span>(</span><span>n_samples=1024)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Generator sampling from a probit model of which variance depends on the sensitive attribute.</p></div>
+<div class="desc"><p>Generator sampling from a probit model with additive white gaussian noise</p>
+<p>The sensitive attribute defines the mean of the covariates</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
+<li><a title="propinfer.generator.LinearGenerator" href="#propinfer.generator.LinearGenerator">LinearGenerator</a></li>
 <li><a title="propinfer.generator.Generator" href="#propinfer.generator.Generator">Generator</a></li>
 </ul>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="propinfer.generator.Generator" href="#propinfer.generator.Generator">Generator</a></b></code>:
+<li><code><b><a title="propinfer.generator.LinearGenerator" href="#propinfer.generator.LinearGenerator">LinearGenerator</a></b></code>:
 <ul class="hlist">
-<li><code><a title="propinfer.generator.Generator.sample" href="#propinfer.generator.Generator.sample">sample</a></code></li>
+<li><code><a title="propinfer.generator.LinearGenerator.sample" href="#propinfer.generator.Generator.sample">sample</a></code></li>
 </ul>
 </li>
 </ul>
 </dd>
 <dt id="propinfer.generator.SubsamplingGenerator"><code class="flex name class">
 <span>class <span class="ident">SubsamplingGenerator</span></span>
-<span>(</span><span>data, label_col, sensitive_attribute, target_category=None, num_samples=1024, proportion=None, split=False, regression=False)</span>
+<span>(</span><span>data, label_col, sensitive_attribute, target_category=None, n_samples=1024, proportion=None, split=False, regression=False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>An abstraction class used to query for data</p>
@@ -166,7 +190,7 @@ Regression mode: samples using a specific given proportion between 0 and 1</p>
 <dd>the attribute which distribution being inferred by the property inference attack; is always considered as categorical</dd>
 <dt><strong><code>target_category</code></strong></dt>
 <dd>if sensitive_attribute is not a binary vector, the category considered in the sensitive attribute</dd>
-<dt><strong><code>num_samples</code></strong> :&ensp;<code>int</code></dt>
+<dt><strong><code>n_samples</code></strong> :&ensp;<code>int</code></dt>
 <dd>the number of records to sample</dd>
 <dt><strong><code>proportion</code></strong> :&ensp;<code>float</code></dt>
 <dd>the proportion of the target_category in the datasets subsampled with label 1 ; ignored in the regression case</dd>
@@ -231,7 +255,10 @@ Regression mode: samples using a specific given proportion between 0 and 1</p>
 <h4><code><a title="propinfer.generator.IndependentPropertyGenerator" href="#propinfer.generator.IndependentPropertyGenerator">IndependentPropertyGenerator</a></code></h4>
 </li>
 <li>
-<h4><code><a title="propinfer.generator.NonlinearGenerator" href="#propinfer.generator.NonlinearGenerator">NonlinearGenerator</a></code></h4>
+<h4><code><a title="propinfer.generator.LinearGenerator" href="#propinfer.generator.LinearGenerator">LinearGenerator</a></code></h4>
+</li>
+<li>
+<h4><code><a title="propinfer.generator.MultilabelProbitGenerator" href="#propinfer.generator.MultilabelProbitGenerator">MultilabelProbitGenerator</a></code></h4>
 </li>
 <li>
 <h4><code><a title="propinfer.generator.ProbitGenerator" href="#propinfer.generator.ProbitGenerator">ProbitGenerator</a></code></h4>

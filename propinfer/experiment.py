@@ -1,9 +1,8 @@
 import pandas as pd
 import numpy as np
 
-from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier, MLPRegressor
-from sklearn.metrics import accuracy_score, mean_absolute_error
+from sklearn.metrics import accuracy_score, mean_absolute_error, mean_squared_error
 from sklearn.model_selection import StratifiedShuffleSplit
 from omegaconf import DictConfig
 from itertools import product
@@ -29,9 +28,10 @@ class Experiment:
             n_shadows (int): the total number of shadow models
             hyperparams (dict or DictConfig): dictionary containing every useful hyper-parameter for the Model;
                          if a list is provided for some hyperparameter(s), we grid optimise between all given options (except for keyword `layers`)
-            n_queries (int): the number of queries used in the scope of grey- and black-box attacks
+            n_queries (int): the number of queries used in the scope of grey- and black-box attacks. Must be strictly superior to `n_targets`
             n_classes (int): the number of classes considered for property inference; if 1 then a regression is performed
             range (tuple): the range of values accepted for regression tasks (needed for regression, ignored for classification)
+                         it is possible to pass an iterable of multiple ranges in order to perform multi-variable property inference regression, in which case the values of the variables are passed to the Generator as a list
         """
 
         assert isinstance(generator, Generator), 'The given generator is not an instance of Generator, but {}'.format(type(generator).__name__)
@@ -59,11 +59,14 @@ class Experiment:
             self.hyperparams = dict()
 
         assert isinstance(n_queries, int), 'The given n_queries is not an integer, but is {}'.format(type(n_queries).__name__)
+        assert n_queries > n_targets, f'n_queries={n_queries} must be strictly superior to n_targets={n_targets}'
         self.n_queries = n_queries
 
         assert isinstance(n_classes, int), 'The given n_classes is not an integer, but is {}'.format(type(n_classes).__name__)
         if n_classes == 1:
             assert range is not None
+            assert hasattr(range, '__getitem__')
+
         self.n_classes = n_classes
         self.range = range
 
@@ -76,7 +79,18 @@ class Experiment:
         self.shadow_models = None
         self.shadow_labels = None
 
+        if n_classes == 1 and hasattr(self.range[0], '__getitem__'):
+            label = [r[0] for r in self.range]
+            data = self.generator.sample(label)
+        elif n_classes == 1:
+            data = self.generator.sample(range[0])
+        else:
+            data = self.generator.sample(0)
+        reg = self.model(self.label_col, self.hyperparams).fit(data).predict_proba(data)
+        self.is_regression = len(reg.shape) < 2 or reg.shape[1] == 1
+
     def __optimise_hyperparams(self):
+        """Private method for hyperparamters grid optimisation"""
         optims = list()
         keys = list()
 
@@ -89,8 +103,9 @@ class Experiment:
 
         optims = list(product(*optims))
 
-        best_acc = 0.
-        best_hyper = None
+        best_res = -np.inf
+        reg_checked = False
+        is_reg = False
 
         for params in optims:
             hyperparams = self.hyperparams.copy()
@@ -99,21 +114,34 @@ class Experiment:
             train = [self.generator.sample(b) for b in [False, True]]
             test = [self.generator.sample(b) for b in [False, True]]
 
-            acc = 0.
+            res = 0.
 
             for i in range(len(train)):
                 models = [self.model(self.label_col, hyperparams).fit(train[i]) for _ in range(10)]
-                acc += np.mean([accuracy_score(test[i][self.label_col], m.predict(train[i])) for m in models])
 
-            acc /= len(train)
+                if not reg_checked and \
+                        (len(models[0].predict_proba(test[0]).shape) < 2 or
+                         models[0].predict_proba(test[0]).shape[1] == 1):
+                    is_reg = True
 
-            if acc > best_acc:
-                best_acc = acc
-                best_hyper = hyperparams
+                reg_checked = True
 
-        logger.debug('Best hyperparameters defined as: {}'.format(best_hyper))
-        logger.debug('Best accuracy: {:.2%}'.format(best_acc))
-        self.hyperparams = best_hyper
+                if is_reg:
+                    res -= np.mean([mean_squared_error(test[i][self.label_col], m.predict(train[i])) for m in models])
+                else:
+                    res += np.mean([accuracy_score(test[i][self.label_col], m.predict(train[i])) for m in models])
+
+            res /= len(train)
+
+            if res > best_res:
+                best_res = res
+                self.hyperparams = hyperparams
+
+        logger.debug('Best hyperparameters defined as: {}'.format(self.hyperparams))
+        if is_reg:
+            logger.debug('Best MSE: {:.2}'.format(-best_res))
+        else:
+            logger.debug('Best accuracy: {:.2%}'.format(best_res))
 
     def run_targets(self):
         """Create and fit target models """
@@ -125,17 +153,28 @@ class Experiment:
                                              np.random.randint(0, self.n_classes, self.n_targets % self.n_classes)),
                                              dtype=np.int8)
         elif self.n_classes == 1:
-            self.labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_targets)
+            if hasattr(self.range[0], '__getitem__'):
+                bounds = np.array(self.range)
+                self.labels = np.random.uniform(bounds[:, 0], bounds[:, 1], (self.n_targets, len(self.range)))
+            else:
+                self.labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_targets)
         else:
             raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
 
         self.targets = [self.model(self.label_col, self.hyperparams).fit(data) for data in
                         [self.generator.sample(label) for label in self.labels]]
 
-        scores = [accuracy_score(data[self.label_col], self.targets[i].predict(data)) for i, data in
-                  enumerate([self.generator.sample(label) for label in self.labels])]
-        logger.debug('Target models accuracy - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
-            np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
+        if self.is_regression:
+            scores = [mean_squared_error(data[self.label_col], self.targets[i].predict(data)) for i, data in
+                      enumerate([self.generator.sample(label) for label in self.labels])]
+            logger.debug('Target models MAE - mean={:.2} - std={:.2} - min={:.2} - max={:.2}'.format(
+                np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
+
+        else:
+            scores = [accuracy_score(data[self.label_col], self.targets[i].predict(data)) for i, data in
+                        enumerate([self.generator.sample(label) for label in self.labels])]
+            logger.debug('Target models accuracy - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
+                        np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_shadows(self, model=None, hyperparams=None):
         """Create and fit shadow models
@@ -166,20 +205,31 @@ class Experiment:
                                                     np.random.randint(0, self.n_classes, self.n_shadows % self.n_classes)),
                                                     dtype=np.int8)
         elif self.n_classes == 1:
-            self.shadow_labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_shadows)
+            if hasattr(self.range[0], '__getitem__'):
+                bounds = np.array(self.range)
+                self.shadow_labels = np.random.uniform(bounds[:, 0], bounds[:, 1], (self.n_shadows, len(self.range)))
+            else:
+                self.shadow_labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/self.n_shadows)
         else:
             raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
 
         self.shadow_models = [model(self.label_col, hyperparams).fit(data) for data in
                               [self.generator.sample(label, adv=True) for label in self.shadow_labels]]
 
-        scores = [accuracy_score(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
+        if self.is_regression:
+            scores = [mean_squared_error(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
                       enumerate([self.generator.sample(label, adv=True) for label in self.shadow_labels])]
-        logger.debug('Shadow models accuracy ({}) - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
-            model.__name__, np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
+            logger.debug('Shadow models MAE - mean={:.2} - std={:.2} - min={:.2} - max={:.2}'.format(
+                np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
+
+        else:
+            scores = [accuracy_score(data[self.label_col], self.shadow_models[i].predict(data)) for i, data in
+                      enumerate([self.generator.sample(label, adv=True) for label in self.shadow_labels])]
+            logger.debug('Shadow models accuracy - mean={:.2%} - std={:.2%} - min={:.2%} - max={:.2%}'.format(
+                np.mean(scores), np.std(scores), np.min(scores), np.max(scores)))
 
     def run_loss_test(self):
-        """Runs a loss test attack on target models. Works only for the binary classification task.
+        """Runs a loss test attack on target models. Works only for the binary classification attack on a classifier.
 
         Returns: Attack accuracy on target models
         """
@@ -193,6 +243,8 @@ class Experiment:
         return accuracy_score(self.labels, [np.argmax(acc) for acc in accuracy])
 
     def __run_multiple(self, n, func, *args):
+        """Helper private method to run a same attack multiple times"""
+
         sss = StratifiedShuffleSplit(n_splits=n, train_size=0.5)
         shadow_models = np.array(self.shadow_models)
         shadow_labels = np.array(self.shadow_labels)
@@ -214,7 +266,7 @@ class Experiment:
         return accs
 
     def run_threshold_test(self, n_outputs=1):
-        """Runs a threshold test attack on target models. Works only for the binary classification task.
+        """Runs a threshold test attack on target models. Works only for the binary classification attack on a classifier.
 
         Args:
             n_outputs (int): number of attack results to output, using multiple random subsets of the shadow models
@@ -250,6 +302,15 @@ class Experiment:
         y_pred = [higher_acc if acc > thr else not higher_acc for acc in accuracy]
         return accuracy_score(self.labels, y_pred)
 
+    def __get_score(self, y_pred):
+        if self.n_classes > 1:
+            return accuracy_score(self.labels, y_pred)
+        else:
+            if len(y_pred.shape) == 1:
+                return mean_absolute_error(self.labels, y_pred)
+            else:
+                return [mean_absolute_error(self.labels[:, i], y_pred[:, i]) for i in range(y_pred.shape[1])]
+
     def run_whitebox_deepsets(self, hyperparams, n_outputs=1):
         """Runs a whitebox attack on the target models using a DeepSets meta-classifier
 
@@ -276,9 +337,10 @@ class Experiment:
         epochs = hyperparams['epochs'] if 'epochs' in hyperparams.keys() else 20
         lr = hyperparams['learning_rate'] if 'learning_rate' in hyperparams.keys() else 1e-4
         wd = hyperparams['weight_decay'] if 'weight_decay' in hyperparams.keys() else 1e-4
+        out_dim = 1 if self.n_classes > 1 or not hasattr(self.range[0], '__getitem__') else len(self.range)
 
         meta_classifier = DeepSets(self.shadow_models[0].parameters(), latent_dim=latent_dim,
-                                   epochs=epochs, lr=lr, wd=wd, n_classes=self.n_classes)
+                                   epochs=epochs, lr=lr, wd=wd, n_classes=self.n_classes, out_dim=out_dim)
 
         train = [s.parameters() for s in self.shadow_models]
         test = [t.parameters() for t in self.targets]
@@ -288,7 +350,7 @@ class Experiment:
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)
+        return self.__get_score(y_pred)
 
     def run_whitebox_sort(self, sort=True, n_outputs=1):
         """Runs a whitebox attack on the target models, by using the model parameters as features for a meta-classifier
@@ -319,7 +381,7 @@ class Experiment:
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)
+        return self.__get_score(y_pred)
 
     def run_blackbox(self, n_outputs=1):
         """Runs a blackbox attack on the target models, by using the result of random queries as features for a meta-classifier
@@ -338,14 +400,19 @@ class Experiment:
         meta_classifier = MLPClassifier(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True) \
             if self.n_classes > 1 else MLPRegressor(hidden_layer_sizes=(128, 64), max_iter=1024, early_stopping=True)
 
-        sample_len = len(self.generator.sample(0, adv=True))
-
         if self.n_classes > 1:
             queries = pd.concat([self.generator.sample(i, adv=True) for i in range(self.n_classes)])
-            labels = np.concatenate([[i]*sample_len for i in range(self.n_classes)])
+            labels = np.concatenate([[i]*len(self.generator.sample(i, adv=True)) for i in range(self.n_classes)])
         elif self.n_classes == 1:
-            labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/10)
-            queries = pd.concat([self.generator.sample(i, adv=True) for i in labels])
+            if hasattr(self.range[0], '__getitem__'):
+                bounds = np.array(self.range)
+                labels = np.random.uniform(bounds[:, 0], bounds[:, 1], (10*len(self.range), len(self.range)))
+                sample_len = len(self.generator.sample([0]*len(self.range), adv=True))
+            else:
+                labels = np.arange(self.range[0], self.range[1], (self.range[1] - self.range[0])/10)
+                sample_len = len(self.generator.sample(0, adv=True))
+
+            queries = pd.concat([self.generator.sample(l, adv=True) for l in labels])
             labels = np.concatenate([[l]*sample_len for l in labels])
         else:
             raise AttributeError("Invalid n_classes provided: {}".format(self.n_classes))
@@ -362,4 +429,4 @@ class Experiment:
 
         del train, test, meta_classifier
 
-        return accuracy_score(self.labels, y_pred) if self.n_classes > 1 else mean_absolute_error(self.labels, y_pred)
+        return self.__get_score(y_pred)

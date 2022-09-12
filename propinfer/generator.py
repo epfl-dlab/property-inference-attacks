@@ -1,5 +1,5 @@
 import numpy as np
-from numpy import array, eye, zeros, concatenate, int32, int64, float32
+from numpy import array, eye, ones, int32, int64, float32
 from numpy.random import normal, multivariate_normal
 from pandas import DataFrame, concat, get_dummies
 from sklearn.model_selection import StratifiedShuffleSplit
@@ -13,16 +13,15 @@ __pdoc__ = {
 class Generator:
     """An abstraction class used to query for data"""
 
-    def __init__(self, num_samples=1024):
-        assert isinstance(num_samples, int), 'num_samples should be an int, but {} was provided'.format(type(num_samples).__name__)
-        self.num_samples = num_samples
+    def __init__(self, n_samples=1024):
+        assert isinstance(n_samples, int), 'n_samples should be an int, but {} was provided'.format(type(n_samples).__name__)
+        self.n_samples = n_samples
 
     def sample(self, label, adv=False):
-        """Returns a dataset sampled from the data; the boolean b describes whether or not the output dataset should have
-        or not the property that is being attacked
+        """Returns a dataset sampled from the data; the label variable corresponds to the property being attacked
 
         Args:
-            label (int or float): the label that corresponds to the dataset being queried
+            label (int or float or numpy.array): the label corresponding to the dataset being queried - when performing regression, the value of the target variable(s)
             adv (bool): a boolean describing whether we are using target or adversary data split
 
         Returns:
@@ -45,7 +44,7 @@ class GaussianGenerator(Generator):
         for i in range(1, 5):
             cov[0, i] = cov[i, 0] = 0.5
 
-        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples),
+        data = DataFrame(data=multivariate_normal(mean, cov, size=self.n_samples),
                          columns=['label', 'f1', 'f2', 'f3', 'f4'], dtype=float32)
         data['label'] = (data['label'] > 0).astype('int32')
 
@@ -64,50 +63,65 @@ class IndependentPropertyGenerator(Generator):
         for i in range(1, 4):
             cov[0, i] = cov[i, 0] = 0.5
 
-        data = DataFrame(data=multivariate_normal(mean, cov, size=self.num_samples),
+        data = DataFrame(data=multivariate_normal(mean, cov, size=self.n_samples),
                          columns=['label', 'f1', 'f2', 'f3', 'f4'], dtype=float32)
         data['label'] = (data['label'] > 0).astype('int32')
 
         return data
 
 
-class ProbitGenerator(Generator):
-    """Generator sampling from a probit model of which variance depends on the sensitive attribute."""
+class LinearGenerator(Generator):
+    """Generator sampling from a linear model with additive white gaussian noise
+
+    The sensitive attribute defines the mean of the covariates"""
+
+    def __init__(self, n_samples=1024):
+        super().__init__(n_samples)
+        self.beta = ones(4) + normal(0., 1., 4)
 
     def sample(self, label, adv=False):
-        beta = array([-1., 1., -0.5, 0.5])
-        x = multivariate_normal(zeros(4), eye(4), size=self.num_samples)
-        y = x @ beta + normal(0., 1+label, size=self.num_samples) + 0.5
+        x = multivariate_normal(ones(4) * label, eye(4), size=self.n_samples)
+        y = x @ self.beta + normal(0., size=self.n_samples) + 0.5
 
         data = DataFrame(data=x,
                          columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
-        data['label'] = (y > 0).astype('int32')
+        data['label'] = y.astype('float32')
 
         return data
 
 
-class NonlinearGenerator(Generator):
-    """Generator sampling from non-linear combinations of the features with added white gaussian noise.
+class ProbitGenerator(LinearGenerator):
+    """Generator sampling from a probit model with additive white gaussian noise
 
-    Sensitive attribute changes the factor used for some of the features."""
+    The sensitive attribute defines the mean of the covariates"""
 
     def sample(self, label, adv=False):
-        beta = array([1.*label, 1.*(1. - label), 1., 1.])
-        x = multivariate_normal(zeros(4), eye(4), size=self.num_samples)
-        epsilon = normal(0., 1., size=self.num_samples) + 0.5
-
-        data = DataFrame(data=x,
-                         columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
-        data['label'] = np.arctan(beta[0] * data['f1']) + np.sin(beta[1] * data['f2']) + \
-                        np.power(beta[2] * data['f3'], 3) + np.tanh(beta[3] * data['f4']) + epsilon
+        data = super().sample(label, adv)
         data['label'] = (data['label'] > 0).astype('int32')
+        return data
+
+
+class MultilabelProbitGenerator(Generator):
+    """Generator sampling from a probit model of which sensitive attribute are the mean and variance of the covariates"""
+
+    def sample(self, label, adv=False):
+        mean = array([label[0]] * 4)
+        cov = eye(4) + 2 * eye(4) * label[1]
+
+        x = multivariate_normal(mean, cov, size=self.n_samples)
+
+        beta = array([-1., 1., -0.5, 1.5])
+        y = x @ beta + 0.25 + normal(0., 1., size=self.n_samples)
+
+        data = DataFrame(data=x, columns=['f1', 'f2', 'f3', 'f4'], dtype=float32)
+        data['label'] = (y > 0).astype('int32')
 
         return data
 
 
 class SubsamplingGenerator(Generator):
     def __init__(self, data, label_col, sensitive_attribute, target_category=None,
-                 num_samples=1024, proportion=None, split=False, regression=False):
+                 n_samples=1024, proportion=None, split=False, regression=False):
         """Generator subsampling records from a larger dataset.
 
         Classification case: samples using a specific proportion for label 1, and for proportion of 0.5 for label 0. Only works with boolean labels.
@@ -118,12 +132,12 @@ class SubsamplingGenerator(Generator):
             label_col (str): the label being predicted by the models
             sensitive_attribute (str): the attribute which distribution being inferred by the property inference attack; is always considered as categorical
             target_category: if sensitive_attribute is not a binary vector, the category considered in the sensitive attribute
-            num_samples (int): the number of records to sample
+            n_samples (int): the number of records to sample
             proportion (float): the proportion of the target_category in the datasets subsampled with label 1 ; ignored in the regression case
             split (bool): whether to split original dataset between target and adversary
             regression (bool): whether to use the sampler in regression or classification mode
         """
-        super().__init__(num_samples)
+        super().__init__(n_samples)
 
         assert isinstance(data, DataFrame), 'Given data should be a DataFrame, but is {}'.format(type(data).__name__)
         self.data = data
@@ -179,7 +193,7 @@ class SubsamplingGenerator(Generator):
             prop = self.proportion if label else 0.5
 
         # Sampling positive examples
-        n = int(self.num_samples * prop)
+        n = int(self.n_samples * prop)
         if n > 0:
             sss = StratifiedShuffleSplit(train_size=n)
             try:
@@ -191,7 +205,7 @@ class SubsamplingGenerator(Generator):
             pos_df = None
 
         # Sampling negative examples
-        n = self.num_samples - int(self.num_samples * prop)
+        n = self.n_samples - int(self.n_samples * prop)
         if n > 0:
             sss = StratifiedShuffleSplit(train_size=n)
             try:

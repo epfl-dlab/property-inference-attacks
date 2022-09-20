@@ -64,6 +64,27 @@ Alternatively, you can instanciate an `Experiment` object using a specific `Gene
 
 It is possible to provide a list as a model hyperparameter: in that case, the framework will automatically optimise between the given options.
 
+## Citation
+
+The research paper relative to this library is currently only available as a pre-print on [arXiv](https://arxiv.org/abs/2209.08541). If you use our library for your research, please cite our work:
+
+```
+V. Hartmann, L. Meynent, M. Peyrard, D. Dimitriadis, S. Tople, and R. West, Distribution inference risks: Identifying and mitigating sources of leakage. arXiv, 2022. doi: 10.48550/ARXIV.2209.08541. 
+```
+
+```
+@misc{https://doi.org/10.48550/arxiv.2209.08541,
+	title        = {Distribution inference risks: Identifying and mitigating sources of leakage},
+	author       = {Hartmann, Valentin and Meynent, Léo and Peyrard, Maxime and Dimitriadis, Dimitrios and Tople, Shruti and West, Robert},
+	year         = 2022,
+	publisher    = {arXiv},
+	doi          = {10.48550/ARXIV.2209.08541},
+	url          = {https://arxiv.org/abs/2209.08541},
+	copyright    = {arXiv.org perpetual, non-exclusive license},
+	keywords     = {Cryptography and Security (cs.CR), Machine Learning (cs.LG), FOS: Computer and information sciences, FOS: Computer and information sciences}
+}
+```
+
 ## References
 
 [1] Karan Ganju, Qi Wang, Wei Yang, Carl A. Gunter, and Nikita Borisov. 2018. Property Inference Attacks on Fully Connected Neural Networks using Permutation Invariant Representations. In Proceedings of the 2018 ACM SIGSAC Conference on Computer and Communications Security (CCS '18). Association for Computing Machinery, New York, NY, USA, 619–633. DOI:https://doi.org/10.1145/3243734.3243834

@@ -66,22 +66,18 @@ It is possible to provide a list as a model hyperparameter: in that case, the fr
 
 ## Citation
 
-The research paper relative to this library is currently only available as a pre-print on [arXiv](https://arxiv.org/abs/2209.08541). If you use our library for your research, please cite our work:
+If you use this library for your work, please cite our paper as follows:
 
 ```
-V. Hartmann, L. Meynent, M. Peyrard, D. Dimitriadis, S. Tople, and R. West, Distribution inference risks: Identifying and mitigating sources of leakage. arXiv, 2022. doi: 10.48550/ARXIV.2209.08541. 
+V. Hartmann, L. Meynent, M. Peyrard, D. Dimitriadis, S. Tople, and R. West, Distribution inference risks: Identifying and mitigating sources of leakage. IEEE Conference on Secure and Trustworthy Machine Learning, 2023.
 ```
 
 ```
-@misc{https://doi.org/10.48550/arxiv.2209.08541,
+@article{hartmann2023distribution,
 	title        = {Distribution inference risks: Identifying and mitigating sources of leakage},
 	author       = {Hartmann, Valentin and Meynent, Léo and Peyrard, Maxime and Dimitriadis, Dimitrios and Tople, Shruti and West, Robert},
-	year         = 2022,
-	publisher    = {arXiv},
-	doi          = {10.48550/ARXIV.2209.08541},
-	url          = {https://arxiv.org/abs/2209.08541},
-	copyright    = {arXiv.org perpetual, non-exclusive license},
-	keywords     = {Cryptography and Security (cs.CR), Machine Learning (cs.LG), FOS: Computer and information sciences, FOS: Computer and information sciences}
+	year         = {2023},
+	journal      = {IEEE Conference on Secure and Trustworthy Machine Learning}
 }
 ```
 

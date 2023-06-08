@@ -66,18 +66,22 @@ It is possible to provide a list as a model hyperparameter: in that case, the fr
 
 ## Citation
 
-If you use this library for your work, please cite our paper as follows:
+If you use this library for your work, please cite [our paper](https://doi.org/10.1109/SaTML54575.2023.00018) as follows:
 
 ```
-V. Hartmann, L. Meynent, M. Peyrard, D. Dimitriadis, S. Tople, and R. West, Distribution inference risks: Identifying and mitigating sources of leakage. IEEE Conference on Secure and Trustworthy Machine Learning, 2023.
+V. Hartmann, L. Meynent, M. Peyrard, D. Dimitriadis, S. Tople and R. West, "Distribution Inference Risks: Identifying and Mitigating Sources of Leakage," 2023 IEEE Conference on Secure and Trustworthy Machine Learning (SaTML), Raleigh, NC, USA, 2023, pp. 136-149, doi: 10.1109/SaTML54575.2023.00018.
 ```
 
 ```
-@article{hartmann2023distribution,
-	title        = {Distribution inference risks: Identifying and mitigating sources of leakage},
-	author       = {Hartmann, Valentin and Meynent, Léo and Peyrard, Maxime and Dimitriadis, Dimitrios and Tople, Shruti and West, Robert},
-	year         = {2023},
-	journal      = {IEEE Conference on Secure and Trustworthy Machine Learning}
+@INPROCEEDINGS{10136150,
+  author={Hartmann, Valentin and Meynent, Léo and Peyrard, Maxime and Dimitriadis, Dimitrios and Tople, Shruti and West, Robert},
+  booktitle={2023 IEEE Conference on Secure and Trustworthy Machine Learning (SaTML)}, 
+  title={Distribution Inference Risks: Identifying and Mitigating Sources of Leakage}, 
+  year={2023},
+  volume={},
+  number={},
+  pages={136-149},
+  doi={10.1109/SaTML54575.2023.00018}
 }
 ```
 
